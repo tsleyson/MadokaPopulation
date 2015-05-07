@@ -39,20 +39,6 @@
   (blacken-soul-gem [familiar _]
     familiar))
 
-(defn- get-interval
-  "Figures out the correct range of victory for the stronger
-  combatant."
-  [combat-diff]
-  (if (pos? combat-diff)
-    #(<= combat-diff % (* 2 combat-diff))
-    #(<= (* 2 combat-diff) % combat-diff)))
-
-(defn- logistic
-  "The logistic function, y(z) = 1/(1 + e^(-z))"
-  [z]
-  (/ 1 (+ 1 (Math/exp (- z)))))
-
-
 (defn get-combat-info
   "Calculates various quantities used for determining outcome of a
   battle."
@@ -78,11 +64,21 @@
        (< (rand) (/ (Math/abs combat-diff)
                     (* (:combat flier) (:combat flier))))))
 
+(defn get-victory-interval
+  "Returns interval for a victory for the stronger party."
+  [combat-ratio]
+  (if (> combat-ratio (- 1 combat-ratio))
+    ;; Then [0, combat-ratio] is a larger interval.
+    #(<= 0 % combat-ratio)
+    #(<= 0 % (- 1 combat-ratio))))
+
 (defn determine-outcome
   [stronger weaker]
-  (if (> (rand) (/ (:combat weaker) (:combat stronger)))
-    weaker
-    stronger))
+  (let [ratio (/ (:combat weaker) (:combat stronger))
+        in-victory-interval? (get-victory-interval ratio)]
+    (if (in-victory-interval? (rand))
+      stronger
+      weaker)))
 
 (defn fight
   "Models combat between two entities. Returns the winner."
@@ -90,7 +86,6 @@
   {:pre [(not-any? nil? (map :combat [combatant1 combatant2]))]}
   
   (let [info (get-combat-info combatant1 combatant2)
-        in-victory-interval (get-interval (:combat-diff info))
         fled? (attempt-escape (:weaker info) (:combat-diff info))]
     (cond
      fled?
