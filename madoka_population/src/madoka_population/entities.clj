@@ -75,7 +75,14 @@
   Returns true for a successful escape, false otherwise."
   [flier combat-diff]
   (and (can-flee flier combat-diff)
-       (< (rand) (/ (Math/abs combat-diff) (* (:combat flier) (:combat flier))))))
+       (< (rand) (/ (Math/abs combat-diff)
+                    (* (:combat flier) (:combat flier))))))
+
+(defn determine-outcome
+  [stronger weaker]
+  (if (> (rand) (/ (:combat weaker) (:combat stronger)))
+    weaker
+    stronger))
 
 (defn fight
   "Models combat between two entities. Returns the winner."
@@ -86,7 +93,7 @@
         in-victory-interval (get-interval (:combat-diff info))
         outcome (stats/sample-normal
                  1
-                 :mean (/ (Math/abs (:combat-diff info)) 2)
+                 :mean 0
                  :sd (Math/abs (:combat-diff info)))
         fled? (attempt-escape (:weaker info) (:combat-diff info))]
     (cond
