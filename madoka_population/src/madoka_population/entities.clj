@@ -62,7 +62,7 @@
   [flier combat-diff]
   (and (can-flee flier combat-diff)
        (< (rand) (/ (Math/abs combat-diff)
-                    (* (:combat flier) (:combat flier))))))
+                    (* 2 (:combat flier))))))
 
 (defn get-victory-interval
   "Returns interval for a victory for the stronger party."
