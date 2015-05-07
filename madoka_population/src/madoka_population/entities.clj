@@ -91,20 +91,11 @@
   
   (let [info (get-combat-info combatant1 combatant2)
         in-victory-interval (get-interval (:combat-diff info))
-        outcome (stats/sample-normal
-                 1
-                 :mean 0
-                 :sd (Math/abs (:combat-diff info)))
         fled? (attempt-escape (:weaker info) (:combat-diff info))]
     (cond
      fled?
-     :fled
-     
+     :fled 
      (zero? (:combat-diff info))
      (rand-nth [combatant1 combatant2])
-     
-     (in-victory-interval outcome)
-     (:stronger info)
-     
      :else
-     (:weaker info))))
+     (determine-outcome (:stronger info) (:weaker info)))))
