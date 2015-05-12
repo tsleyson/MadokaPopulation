@@ -9,9 +9,12 @@
 
 ;; Note: if errors occur inside an agent, you have to
 ;; call clear-agent-errors on it before proceeding.
-(def dot (agent
-          (apply vector
-                 (repeat 2 (* world-size 0.5)))))
+(def dots
+  (doall repeatedly (500
+                     #(->> world-size
+                           (repeat 2)
+                           (mapv (partial * 0.5))
+                           agent))))
 
 (def dot-wait
   "When true, the dot should halt and wait."
@@ -21,7 +24,7 @@
   "When false, the main loop quits."
   (atom true))
 
-(def frames-per-second 60)
+(def frames-per-second 40)
 
 (def update-lag
   "It's pointless to update data more than once during this period,
@@ -50,7 +53,7 @@
           [new-x new-y])
         (do
           (toggle dot-wait)
-          pos)))))
+          (mapv (partial * 0.5) (repeat 2 world-size)))))))
 
 (defn- background-thread
   "Repeatedly executes function on another thread."
@@ -73,30 +76,27 @@
   [wait-time]
   (when @dot-wait
     (toggle dot-wait))
-  (send-off dot update-dot (rand-angle) (dec update-lag))
+  (doseq [dot dots]
+    (send-off dot update-dot (rand-angle) (/ update-lag 2)))
   (Thread/sleep wait-time)
   (toggle dot-wait))
 
 (defn setup
   []
   (qc/smooth)
-  (qc/frame-rate frames-per-second)
-  (comment  (toggle dot-wait)
-            (send-off dot update-dot (/ qc/PI 3) (dec update-lag)))
-  (background-thread #(move-dot 5000)))
+  (qc/frame-rate frames-per-second) 
+  (background-thread #(move-dot 20000)))
 
 ;; Coords to qc/text specify bottom left of bounding box.
 (defn draw
   []
   (qc/background 150 150 150)
-  (let [[x y] @dot]
-    (qc/fill 250 150 150)
-    (qc/ellipse x y 5 5)
-    (qc/fill 0 0 0)
-    (qc/text (format "x:%.3f\ny:%.3f\n" x y) 10 10))
-  (comment (when @dot-wait
-             (toggle dot-wait)
-             (send-off dot update-dot (rand-angle) 15))))
+  (doseq [dot dots]
+    (let [[x y] @dot]
+      (qc/fill 250 150 150)
+      (qc/ellipse x y 5 5)
+      (qc/fill 0 0 0)
+      #_(qc/text (format "x:%.3f\ny:%.3f\n" x y) 10 10))))
 
 (qc/defsketch simple-example
   :title "A simple example"
