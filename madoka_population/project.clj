@@ -4,7 +4,8 @@
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
-                 [incanter "1.5.6"]]
+                 [incanter "1.5.6"]
+                 [quil "2.2.5"]]
   :main ^:skip-aot madoka-population.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

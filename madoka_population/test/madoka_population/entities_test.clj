@@ -9,6 +9,10 @@
 (def gertrud
   (entities/->Witch 75 15))
 
+;; One of Gisela's familiars.
+(def anthony
+  (entities/->Familiar 49))
+
 ;; Kriemhild Gretchen is Madoka's witch form, capable of
 ;; destroying the world in ten days and pretty hard not to
 ;; notice, so it has 1 billion combat and discoverability.
@@ -84,4 +88,7 @@
            (count-wins-of sayaka kriemhild-gretchen 1000)))
   (testing "How often each opponent wins (Ultimate Madoka vs. Gretchen)"
     (apply (partial printf "%s: %.3f\n%s: %.3f\n%s: %.3f\n")
-           (count-wins-of ultimate-madoka kriemhild-gretchen 1000))))
+           (count-wins-of ultimate-madoka kriemhild-gretchen 1000)))
+  (testing "How often each opponent wins (Sayaka vs. Anthony)"
+    (apply (partial printf "%s: %.3f\n%s: %.3f\n%s: %.3f\n")
+           (count-wins-of sayaka anthony 1000))))
