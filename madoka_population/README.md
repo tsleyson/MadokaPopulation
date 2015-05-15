@@ -1,8 +1,8 @@
 # madoka_population
 
-FIXME: description
+A simulation of the witch / magical girl population as seen in [a certain magical girl anime](http://en.wikipedia.org/wiki/Puella_Magi_Madoka_Magica).
 
-## Installation
+
 
 Download from http://example.com/FIXME.
 
@@ -24,13 +24,3 @@ FIXME: listing of options this app accepts.
 
 ...
 
-### Any Other Sections
-### That You Think
-### Might be Useful
-
-## License
-
-Copyright © 2015 FIXME
-
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.

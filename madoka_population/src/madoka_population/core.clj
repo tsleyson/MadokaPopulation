@@ -1,7 +1,8 @@
 (ns madoka-population.core
   (:gen-class)
   (:require [madoka-population.entities :as entities]
-            [quil.core :as qc]))
+            [quil.core :as qc]
+            [taoensso.timbre.profiling :as profiling]))
 
 (def world-size
   "The size of the world map, in pixels"
@@ -10,7 +11,7 @@
 ;; Note: if errors occur inside an agent, you have to
 ;; call clear-agent-errors on it before proceeding.
 (def dots
-  (doall repeatedly (500
+  (doall (repeatedly 10
                      #(->> world-size
                            (repeat 2)
                            (mapv (partial * 0.5))
@@ -24,7 +25,7 @@
   "When false, the main loop quits."
   (atom true))
 
-(def frames-per-second 40)
+(def frames-per-second 60)
 
 (def update-lag
   "It's pointless to update data more than once during this period,
@@ -39,7 +40,7 @@
   [flag]
   `(swap! ~flag not))
 
-(defn update-dot
+(profiling/defnp update-dot
   "Moves dot one pixel in direction."
   [[x y :as pos] direction wait-time]
   (if @dot-wait
@@ -77,7 +78,7 @@
   (when @dot-wait
     (toggle dot-wait))
   (doseq [dot dots]
-    (send-off dot update-dot (rand-angle) (/ update-lag 2)))
+    (send-off dot update-dot (rand-angle) 5))
   (Thread/sleep wait-time)
   (toggle dot-wait))
 
@@ -85,7 +86,7 @@
   []
   (qc/smooth)
   (qc/frame-rate frames-per-second) 
-  (background-thread #(move-dot 20000)))
+  (background-thread #(move-dot 2000)))
 
 ;; Coords to qc/text specify bottom left of bounding box.
 (defn draw
