@@ -13,18 +13,16 @@
 
 (def world-size
   "The size of the world map, in pixels"
-  400)
-
-(def initial-dots 20)
+  600)
 
 (def turns-per-day
   "A multiple of 60, the frames per second."
-  720)
+  60)
 
 (def frames-per-second 60)
 
-(def initial-pinks 100)
-(def initial-blacks 20)
+(def initial-pinks 1000)
+(def initial-blacks 200)
 
 #_(profiling/defnp update-pinks
   "Moves dot one pixel in direction."
@@ -46,7 +44,7 @@
          new-y (+ y (Math/sin heading))]
      (if (and (<= 0 new-x world-size) (<= 0 new-y world-size))
        [new-x new-y]
-       position))
+       (mapv (partial * 0.5) (repeat 2 world-size))))
    :heading
    (if (zero? turns)
      (rand-angle)
@@ -88,14 +86,15 @@
   (-> previous-state
       (merge
        {:pinks
-        (doall (map update-pink pinks (repeat turns)))
+        (doall (pmap update-pink pinks (repeat turns)))
         :turns
         (mod (inc turns) turns-per-day)})))
 
 ;; Coords to qc/text specify bottom left of bounding box.
 (defn draw
-  [{:keys [pinks blacks]}]
+  [{:keys [pinks blacks turns]}]
   (qc/background 150 150 150)
+  (qc/text (format "Turn %d" turns) 10 10)
   (doseq [pink pinks]
     (let [[x y] (:position pink)]
       (qc/fill 250 150 150)
