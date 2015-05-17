@@ -82,13 +82,18 @@
    :blacks (doall (repeatedly initial-blacks create-black))})
 
 (defn update
-  [{:keys [pinks turns] :as previous-state}]
-  (-> previous-state
-      (merge
-       {:pinks
-        (doall (pmap update-pink pinks (repeat turns)))
-        :turns
-        (mod (inc turns) turns-per-day)})))
+  [{:keys [pinks blacks turns] :as previous-state}]
+  (let [survivors
+        (into #{}
+              (for [pink pinks, black blacks
+                    :when (discovery-zones-intersect? pink black)]
+                ))]
+    (-> previous-state
+        (merge
+         {:pinks
+          (doall (pmap update-pink pinks (repeat turns)))
+          :turns
+          (mod (inc turns) turns-per-day)}))))
 
 ;; Coords to qc/text specify bottom left of bounding box.
 (defn draw
