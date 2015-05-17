@@ -2,108 +2,117 @@
   (:gen-class)
   (:require [madoka-population.entities :as entities]
             [quil.core :as qc]
+            [quil.middleware :as qm]
             [taoensso.timbre.profiling :as profiling]))
+
+(defn rand-angle
+  "Returns a random number between 0 and 2*pi, which can be
+  interpreted as a number of radians."
+  []
+  (* qc/PI (rand 2)))
 
 (def world-size
   "The size of the world map, in pixels"
   400)
 
-;; Note: if errors occur inside an agent, you have to
-;; call clear-agent-errors on it before proceeding.
-(def dots
-  (doall (repeatedly 10
-                     #(->> world-size
-                           (repeat 2)
-                           (mapv (partial * 0.5))
-                           agent))))
+(def initial-dots 20)
 
-(def dot-wait
-  "When true, the dot should halt and wait."
-  (atom true))
-
-(def continue
-  "When false, the main loop quits."
-  (atom true))
+(def turns-per-day
+  "A multiple of 60, the frames per second."
+  720)
 
 (def frames-per-second 60)
 
-(def update-lag
-  "It's pointless to update data more than once during this period,
-  because the screen won't be updated and we'll have weird leaps."
-  (int (/ 1000 frames-per-second)))
+(def initial-pinks 100)
+(def initial-blacks 20)
 
-;; Utility macro in case I decide (for whatever reason) to
-;; change the representation of the flags; then I just change swap!
-;; here.
-(defmacro toggle
-  "Toggle a flag."
-  [flag]
-  `(swap! ~flag not))
-
-(profiling/defnp update-dot
+#_(profiling/defnp update-pinks
   "Moves dot one pixel in direction."
-  [[x y :as pos] direction wait-time]
-  (if @dot-wait
-    pos
-    (let [new-x (+ x (Math/cos direction))
-          new-y (+ y (Math/sin direction))]
-      (if (and (<= 0 new-x world-size) (<= 0 new-y world-size))
-        (do
-          (Thread/sleep wait-time)
-          (send-off *agent* update-dot direction wait-time)
-          [new-x new-y])
-        (do
-          (toggle dot-wait)
-          (mapv (partial * 0.5) (repeat 2 world-size)))))))
+  [{[x y :as position] :position, heading :heading :as pink}, turns]
+  (let [new-x (+ x (Math/cos heading))
+        new-y (+ y (Math/sin heading))]
+    (if (and (<= 0 new-x world-size) (<= 0 new-y world-size))
+      {:position [new-x, new-y]
+       :heading (if (zero? turns) (rand-angle) heading)}
+      (do
+        (toggle dot-wait)
+        (mapv (partial * 0.5) (repeat 2 world-size))))))
 
-(defn- background-thread
-  "Repeatedly executes function on another thread."
-  [function]
-  (future
-    (loop []
-      (function)
-      (when @continue
-        (recur)))))
+(defn update-pink
+  "Returns updated pink dot."
+  [{[x y :as position] :position, heading :heading} turns]
+  {:position
+   (let [new-x (+ x (Math/cos heading))
+         new-y (+ y (Math/sin heading))]
+     (if (and (<= 0 new-x world-size) (<= 0 new-y world-size))
+       [new-x new-y]
+       position))
+   :heading
+   (if (zero? turns)
+     (rand-angle)
+     heading)})
 
-(defn- rand-angle
-  "Returns a random number between 0 and 2*pi, which can be
-  interpreted as a number of radians."
+(comment (defn- background-thread
+           "Repeatedly executes function on another thread."
+           [function]
+           (future
+             (loop []
+               (function)
+               (when @continue
+                 (recur))))))
+
+(defn create-pink
+  "This will create magical girls in the final version."
   []
-  (* qc/PI (rand 2)))
-;; Note: 0 radians = 2*pi radians, so we can exclude 2.
+  {:position (->> world-size
+                  (repeat 2)
+                  (mapv (partial * 0.5)))
+   :heading (rand-angle)})
 
-(defn move-dot
-  "Sends update function to dot's agent."
-  [wait-time]
-  (when @dot-wait
-    (toggle dot-wait))
-  (doseq [dot dots]
-    (send-off dot update-dot (rand-angle) 5))
-  (Thread/sleep wait-time)
-  (toggle dot-wait))
-
+(defn create-black
+  "Will create witches in the final version."
+  []
+  {:position (->> #(rand world-size)
+                  (repeatedly 2)
+                  vec)})
 (defn setup
   []
   (qc/smooth)
   (qc/frame-rate frames-per-second) 
-  (background-thread #(move-dot 2000)))
+  {:turns 0
+   :pinks (doall (repeatedly initial-pinks create-pink))
+   :blacks (doall (repeatedly initial-blacks create-black))})
+
+(defn update
+  [{:keys [pinks turns] :as previous-state}]
+  (-> previous-state
+      (merge
+       {:pinks
+        (doall (map update-pink pinks (repeat turns)))
+        :turns
+        (mod (inc turns) turns-per-day)})))
 
 ;; Coords to qc/text specify bottom left of bounding box.
 (defn draw
-  []
+  [{:keys [pinks blacks]}]
   (qc/background 150 150 150)
-  (doseq [dot dots]
-    (let [[x y] @dot]
+  (doseq [pink pinks]
+    (let [[x y] (:position pink)]
       (qc/fill 250 150 150)
       (qc/ellipse x y 5 5)
+      #_(qc/text (format "x:%.3f\ny:%.3f\n" x y) 10 10)))
+  (doseq [black blacks]
+    (let [[x y] (:position black)]
       (qc/fill 0 0 0)
-      #_(qc/text (format "x:%.3f\ny:%.3f\n" x y) 10 10))))
+      (qc/ellipse x y 10 10))))
 
 (qc/defsketch simple-example
   :title "A simple example"
   :setup setup
   :draw draw
-  :size [world-size world-size])
+  :update update
+  :size [world-size world-size]
+  :middleware [qm/fun-mode])
 
 (defn -main
   "I don't do a whole lot ... yet."

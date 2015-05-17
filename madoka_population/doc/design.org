@@ -161,6 +161,7 @@ Incubators are essentially ignored by the other actors in the simulation.
   - Success: A number between 0 and 1 which indicates the likelihood of
     the Incubator succeeding at creating a magical girl. 
 ** Problems [updated as we go]
+*** Entity problems
 1. Sayaka runs away from Gertrud too much. About half the time. That makes sense since the ratio of her and Gertrud's combat differential and her combat stat is about 0.5, so about half the time the random number should be below the threshold, and about half the time it should be above. That’s about the only damn thing here that does make sense.
 2. Sayaka also beats Gertrud way too much. Gertrud is stronger, but practically never wins. I would think the combat info function is somehow fucked and is getting the wrong person for stronger and weaker, except it passes all its unit tests. So I probably fucked up the system for determining the winner, probably due to my total idiocy at statistics and lack of knowledge about the normal distribution. 
 3. Sayaka also wins ridiculously often against Kriemhild Gretchen; she should practically never win, ever, but she consistently wins 85% of the battles.
@@ -171,3 +172,10 @@ So the weaker person is way too favored by this system (unless there /is/ someth
 Chinsy solutions:
 1. Just multiply the combat by 2 so the flight threshold becomes smaller.
 2. Come up with a new way to do combat. Read about some probability distributions and stuff. First try just messing with the victory interval.
+
+*** Graphical display problems
+Lots of hiccuping and freezing as the number of entities on screen grows. My guess is agent overhead. 1 dot works pretty well, three sort of works, but as soon as you get to five, everything is all screwed up.
+
+I have no idea how Rich Hickey’s ants demo deals with this. Maybe a weakness in Quil? Maybe I can get around it by using the OpenGL rendering mode?
+
+For now going to just add witches, and then recode the whole thing to use sequential code instead of agents and proceed with Quil’s frame rate. Maybe use coarser-grained parallelism (e.g. one thread pool working across a list, like pmap or something, instead of each entity being an agent on its own.) Brian Carper had problems with agent performance too, when he tried to make every entity in his RPG game its own agent.
