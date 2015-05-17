@@ -4,8 +4,9 @@
 (defrecord MagicalGirl
     [combat tracking soul-gem corruption-rate home])
 
+;; Witches' positions are built-in because they don't change.
 (defrecord Witch
-    [combat discoverability])
+    [combat discoverability position])
 
 (defrecord Familiar
     [combat])
@@ -38,6 +39,31 @@
   (can-flee [_ _] false)
   (blacken-soul-gem [familiar _]
     familiar))
+
+(defn new-magical-girl
+  "Creates a new magical girl with random stats."
+  [world-size]
+  (->MagicalGirl
+   (stats/sample-exp 1 :rate 1/50)
+   (stats/sample-exp 1 :rate 1/5)
+   0.0
+   (stats/sample-uniform 1 :min 0.01 :max 0.1)
+   (vec (repeatedly 2 #(rand world-size)))))
+
+(defn new-witch
+  "Creates a new witch based on a magical girl."
+  [magical-girl]
+  (->Witch
+   (* 1.5 (:combat magical-girl))
+   (+ (:combat magical-girl)
+      (* (:tracking magical-girl) (:tracking magical-girl)))
+   (:position magical-girl)))
+
+(defn new-incubator
+  "Creates a new Incubator with random success rate."
+  []
+  (->Incubator
+   (rand 1)))
 
 (defn get-combat-info
   "Calculates various quantities used for determining outcome of a
@@ -89,8 +115,8 @@
         fled? (attempt-escape (:weaker info) (:combat-diff info))]
     (cond
      fled?
-     :fled 
+       :fled 
      (zero? (:combat-diff info))
-     (rand-nth [combatant1 combatant2])
+       (rand-nth [combatant1 combatant2])
      :else
-     (determine-outcome (:stronger info) (:weaker info)))))
+       (determine-outcome (:stronger info) (:weaker info)))))

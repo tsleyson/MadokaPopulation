@@ -7,7 +7,7 @@
   (entities/->MagicalGirl 50 12 0 0.06 [34.123 109.234]))
 
 (def gertrud
-  (entities/->Witch 75 15))
+  (entities/->Witch 75 15 [-1 -1]))
 
 ;; One of Gisela's familiars.
 (def anthony
@@ -17,7 +17,7 @@
 ;; destroying the world in ten days and pretty hard not to
 ;; notice, so it has 1 billion combat and discoverability.
 (def kriemhild-gretchen
-  (entities/->Witch 1e9 1e9))
+  (entities/->Witch 1e9 1e9 [-1 -1]))
 
 ;; Ultimate Madoka doesn't succumb to despair and she
 ;; can defeat any witch, even her own witch form which
@@ -77,7 +77,7 @@
           (repeatedly ~rounds #(entities/fight ~combatant1 ~combatant2)))]
     [(str '~combatant1) (float (/ (get freqs# ~combatant1 0) ~rounds))
      (str '~combatant2) (float (/ (get freqs# ~combatant2 0) ~rounds))
-     "fled" (float (/ (get freqs# :fled 0) ~rounds))]))
+     "fled" (float (/ (:fled freqs# 0) ~rounds))]))
 
 (deftest test-fighting
   (testing "How often each opponent wins (Gertrud vs. Sayaka)."
