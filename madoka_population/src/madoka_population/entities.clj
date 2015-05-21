@@ -1,6 +1,7 @@
 (ns madoka-population.entities
   (:require [incanter.stats :as stats]))
 
+;; Magical girls' positions are assoced in later.
 (defrecord MagicalGirl
     [combat tracking soul-gem corruption-rate home])
 
@@ -43,11 +44,12 @@
 (defn new-magical-girl
   "Creates a new magical girl with random stats."
   [world-size]
+  {:post ()}
   (->MagicalGirl
    (stats/sample-exp 1 :rate 1/50)
    (stats/sample-exp 1 :rate 1/5)
    0.0
-   (stats/sample-uniform 1 :min 0.01 :max 0.1)
+   (first (stats/sample-uniform 1 :min 0.01 :max 0.1))
    (vec (repeatedly 2 #(rand world-size)))))
 
 (defn new-witch

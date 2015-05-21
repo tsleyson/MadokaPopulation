@@ -3,8 +3,11 @@
             [madoka-population.entities :as entities]))
 
 (def ^:dynamic random-source
-  "The source of random numbers."
+  "The source of random numbers. Can be rebound for reproducible
+randomness."
   (java.util.Random.))
+
+;;;; Movement-related functions
 
 ;; This is one ass-ugly function. Maybe a square macro would help.
 ;; Note: see http://stackoverflow.com/a/8367547/3376926.
@@ -31,13 +34,18 @@
   [magical-girl witch]
   (circles-overlap? magical-girl witch))
 
+;;;; Events which result in new entities.
+
 (defn spawn-magical-girls
   "Each Incubator attempts to spawn a magical girl."
   [incubators world-size]
   (let [successes
-        (->> (repeatedly (count incubators) #(.nextDouble random-source 0 1))
-             (filter #(<= %2 (:success-rate %1)) incubators))]
-    (repeatedly (count successes) (entities/new-magical-girl world-size))))
+        (->> (repeatedly (count incubators) #(.nextDouble random-source))
+             (map #(when (<= %2 (:success-rate %1)) %2) incubators)
+             (remove nil?))]
+    (repeatedly (count successes) #(entities/new-magical-girl world-size))))
+
+;;;; Combat related functions
 
 (defn get-combat-info
   "Calculates various quantities used for determining outcome of a
@@ -60,7 +68,7 @@
 
   Returns true for a successful escape, false otherwise."
   [flier combat-diff]
-  (and (can-flee flier combat-diff)
+  (and (entities/can-flee flier combat-diff)
        (< (rand) (/ (Math/abs combat-diff)
                     (* 2 (:combat flier))))))
 
