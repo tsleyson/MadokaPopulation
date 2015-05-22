@@ -34,16 +34,49 @@ randomness."
   [magical-girl witch]
   (circles-overlap? magical-girl witch))
 
+(defn move
+  "Moves a magical girl. Sends her home when appropriate."
+  [{[x y :as position] :position, heading :heading} magical-girl
+   within-world?
+   return-home?]
+  (assoc magical-girl :position
+         (let [new-x (+ x (Math/cos heading))
+               new-y (+ y (Math/sin heading))]
+           (if (within-world? new-x new-y)
+             [new-x new-y]
+             (:home magical-girl)))))
+
+(defn determine-heading
+  "Pick a heading when necessary."
+  [{position :position, home :home, heading :heading} magical-girl]
+  (if (or (nil? heading) (= home position))
+    (assoc magical-girl :heading (rand-angle))
+    magical-girl))
+
 ;;;; Events which result in new entities.
 
 (defn spawn-magical-girls
-  "Each Incubator attempts to spawn a magical girl."
+  "Each Incubator attempts to spawn a magical girl. Returns a sequence
+  of successfully created magical girls in a diff map."
   [incubators world-size]
   (let [successes
         (->> (repeatedly (count incubators) #(.nextDouble random-source))
              (map #(when (<= %2 (:success-rate %1)) %2) incubators)
              (remove nil?))]
-    (repeatedly (count successes) #(entities/new-magical-girl world-size))))
+    {:magical-girls
+     (repeatedly (count successes)
+                 #(entities/new-magical-girl world-size))}))
+
+(defn spawn-witches
+  "Finds all magical girls who have succumbed to despair, and turns
+  them into witches. Removes them from magical girl sequence and
+  returns the new magical girl sequence and the new witch sequence in
+  a diff map."
+  [magical-girls witches]
+  (let [despairing (into #{} (filter #(>= (:soul-gem %) 1.0)
+                                     magical-girls))]
+    {:magical-girls (remove despairing magical-girls)
+     :witches (concat witches (map entities/new-witch despairing))}))
 
 ;;;; Combat related functions
 
@@ -85,11 +118,12 @@ randomness."
   (let [ratio (/ (:combat weaker) (:combat stronger))
         in-victory-interval? (get-victory-interval ratio)]
     (if (in-victory-interval? (rand))
-      stronger
-      weaker)))
+      {:winner stronger, :loser weaker}
+      {:winner weaker, :loser stronger})))
 
 (defn fight
-  "Models combat between two entities. Returns the winner."
+  "Models combat between two entities. Returns a map of information
+  about the outcome of the battle."
   [combatant1 combatant2]
   {:pre [(not-any? nil? (map :combat [combatant1 combatant2]))]}
   
@@ -97,8 +131,29 @@ randomness."
         fled? (attempt-escape (:weaker info) (:combat-diff info))]
     (cond
      fled?
-       :fled 
+       {:fled (:weaker info)}
      (zero? (:combat-diff info))
-       (rand-nth [combatant1 combatant2])
+       (let [shuffled (shuffle [combatant1 combatant2])]
+         {:winner (first shuffled)
+          :loser (second shuffled)}) 
      :else
        (determine-outcome (:stronger info) (:weaker info)))))
+
+(defn round-of-combat
+  [magical-girls witches]
+  (let [combat-results
+        (->> (for [magical-girl magical-girls, witch witches
+                   :when (discovered? magical-girl witch)]
+               [magical-girl witch])
+             (map #(apply fight %)))
+        the-dead (into #{} (map :loser combat-results))
+        the-victors (into #{} (map :winner combat-results))
+        the-fled (into #{} (map :fled combat-results))]
+    {:magical-girls
+     (->> magical-girls
+         (remove the-dead)
+         (map #(if (contains? the-victors %) (won-battle %)))
+         (map #(if (contains? the-fled %)) (fled-battle %)))
+     :witches
+     (->> witches
+          (remove the-dead))}))

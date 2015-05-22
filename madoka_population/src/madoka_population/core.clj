@@ -5,6 +5,7 @@
             [quil.middleware :as qm]
             [taoensso.timbre.profiling :as profiling]))
 
+;; Note: Math/PI actually has more digits than quil.core/PI.
 (defn rand-angle
   "Returns a random number between 0 and 2*pi, which can be
   interpreted as a number of radians."

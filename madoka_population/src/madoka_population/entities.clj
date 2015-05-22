@@ -17,7 +17,10 @@
 
 (defprotocol combatant
   (can-flee [flier combat-diff])
-  (blacken-soul-gem [entity multiplier]))
+  (blacken-soul-gem [entity multiplier])
+  (increase-combat [entity])
+  (won-battle [entity])
+  (fled-battle [entity]))
 
 (extend-type MagicalGirl
   combatant
@@ -27,24 +30,46 @@
     (assoc magical-girl
       :soul-gem
       (+ (:soul-gem magical-girl)
-         (* multiplier (:corruption-rate magical-girl))))))
+         (* multiplier (:corruption-rate magical-girl)))))
+  (increase-combat [magical-girl]
+    (assoc magical-girl
+      :combat
+      (+ (:combat magical-girl)
+         (first (stats/sample-normal 1 :mean 5 :sd 1)))))
+  (won-battle [magical-girl]
+    (-> magical-girl
+        increase-combat
+        (assoc :soul-gem 0.0)))
+  (fled-battle [magical-girl]
+    (blacken-soul-gem magical-girl 2)))
 
 (extend-type Witch
   combatant
   (can-flee [_ _] false)
   (blacken-soul-gem [witch _]
+    witch)
+  (increase-combat [witch]
+    witch)
+  (won-battle [witch]
+    witch)
+  (fled-battle [witch]
     witch))
 
 (extend-type Familiar
   combatant
   (can-flee [_ _] false)
   (blacken-soul-gem [familiar _]
+    familiar)
+  (increase-combat [familiar]
+    familiar)
+  (won-battle [familiar]
+    familiar)
+  (fled-battle [familiar]
     familiar))
 
 (defn new-magical-girl
   "Creates a new magical girl with random stats."
   [world-size]
-  {:post ()}
   (->MagicalGirl
    (stats/sample-exp 1 :rate 1/50)
    (stats/sample-exp 1 :rate 1/5)
