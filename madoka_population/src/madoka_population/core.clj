@@ -74,6 +74,7 @@
   {:position (->> #(rand world-size)
                   (repeatedly 2)
                   vec)})
+
 (defn setup
   []
   (qc/smooth)

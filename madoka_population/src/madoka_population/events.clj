@@ -7,6 +7,15 @@
 randomness."
   (java.util.Random.))
 
+;;;; Utilities
+
+(defn- rand-angle
+  "Returns a random number between 0 and 2*pi, which can be
+  interpreted as a radian angle / heading."
+  []
+  (* Math/PI (* 2 (.nextDouble random-source))))
+;; Took the (* 2 (.nextDouble ...)) part from the source of rand.
+
 ;;;; Movement-related functions
 
 ;; This is one ass-ugly function. Maybe a square macro would help.
@@ -140,6 +149,8 @@ randomness."
        (determine-outcome (:stronger info) (:weaker info)))))
 
 (defn round-of-combat
+  "Given all magical girls and witches on the field, runs all possible
+  battles. Returns a list of surviving magical girls and witches."
   [magical-girls witches]
   (let [combat-results
         (->> (for [magical-girl magical-girls, witch witches
@@ -148,12 +159,16 @@ randomness."
              (map #(apply fight %)))
         the-dead (into #{} (map :loser combat-results))
         the-victors (into #{} (map :winner combat-results))
-        the-fled (into #{} (map :fled combat-results))]
+        the-fled (into #{} (keep #(:fled % nil) combat-results))]
     {:magical-girls
      (->> magical-girls
          (remove the-dead)
-         (map #(if (contains? the-victors %) (won-battle %)))
-         (map #(if (contains? the-fled %)) (fled-battle %)))
+         (map #(entities/blacken-soul-gem % 1))
+         (map #(if (contains? the-victors %) (entities/won-battle %) %))
+         (map #(if (contains? the-fled %) (entities/fled-battle %) %)))
      :witches
      (->> witches
           (remove the-dead))}))
+;; Blacken everyone's soul gem, but then purify those who have won a battle.
+;; After this we call spawn-witches on the list and anyone whose soul gem
+;; is over the edge becomes a witch.
