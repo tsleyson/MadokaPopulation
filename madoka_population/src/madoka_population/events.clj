@@ -18,14 +18,13 @@ randomness."
 
 ;;;; Movement-related functions
 
-;; This is one ass-ugly function. Maybe a square macro would help.
 ;; Note: see http://stackoverflow.com/a/8367547/3376926.
 ;; We don't have a |R0 - R1| <= ... part because that excludes circles
 ;; which are contained in another circle, but we want to include those.
 (defn circles-overlap?
   "Checks if discovery radii overlap."
   [magical-girl witch]
-  {:pre (contains? magical-girl :position)}
+  {:pre [(contains? magical-girl :position)]}
   (let [[mg-x mg-y] (:position magical-girl)
         [w-x w-y] (:position witch)
         magical-girl-radius (:tracking magical-girl)
@@ -43,24 +42,28 @@ randomness."
   [magical-girl witch]
   (circles-overlap? magical-girl witch))
 
-(defn move
-  "Moves a magical girl. Sends her home when appropriate."
-  [{[x y :as position] :position, heading :heading} magical-girl
-   within-world?
-   return-home?]
-  (assoc magical-girl :position
-         (let [new-x (+ x (Math/cos heading))
-               new-y (+ y (Math/sin heading))]
-           (if (within-world? new-x new-y)
-             [new-x new-y]
-             (:home magical-girl)))))
-
 (defn determine-heading
   "Pick a heading when necessary."
-  [{position :position, home :home, heading :heading} magical-girl]
+  [{:keys [position home heading] :as magical-girl}]
+  {:pre [(contains? magical-girl :position)]}
   (if (or (nil? heading) (= home position))
     (assoc magical-girl :heading (rand-angle))
     magical-girl))
+
+(defn move
+  "Moves a magical girl. Sends her home when appropriate."
+  [{[x y :as position] :position, :keys [heading home] :as magical-girl}
+   within-world?]
+  (if (or (nil? position) (nil? heading))
+    (-> magical-girl
+        (assoc :position home)
+        (determine-heading))
+    (assoc magical-girl :position
+           (let [new-x (+ x (Math/cos heading))
+                 new-y (+ y (Math/sin heading))]
+             (if (within-world? new-x new-y) 
+               [new-x new-y]
+               home)))))
 
 ;;;; Events which result in new entities.
 
@@ -111,7 +114,7 @@ randomness."
   Returns true for a successful escape, false otherwise."
   [flier combat-diff]
   (and (entities/can-flee flier combat-diff)
-       (< (rand) (/ (Math/abs combat-diff)
+       (< (.nextDouble random-source) (/ (Math/abs combat-diff)
                     (* 2 (:combat flier))))))
 
 (defn get-victory-interval
@@ -123,10 +126,11 @@ randomness."
     #(<= 0 % (- 1 combat-ratio))))
 
 (defn determine-outcome
+  "A helper for fight that determines who wins the confrontation."
   [stronger weaker]
   (let [ratio (/ (:combat weaker) (:combat stronger))
         in-victory-interval? (get-victory-interval ratio)]
-    (if (in-victory-interval? (rand))
+    (if (in-victory-interval? (.nextDouble random-source))
       {:winner stronger, :loser weaker}
       {:winner weaker, :loser stronger})))
 
@@ -148,18 +152,25 @@ randomness."
      :else
        (determine-outcome (:stronger info) (:weaker info)))))
 
+(defn combat-results
+  "Run all possible battles given a list of witches and a list of
+  magical girls. Returns a map containing the dead, the victors, and
+  the fled."
+  [magical-girls witches]
+  (let [results (->> (for [magical-girl magical-girls, witch witches
+                           :when (discovered? magical-girl witch)]
+                       [magical-girl witch])
+                     (map #(apply fight %)))]
+    {:the-dead (into #{} (map :loser results))
+     :the-victors (into #{} (map :winner results))
+     :the-fled (into #{} (keep #(:fled % nil) results))}))
+
 (defn round-of-combat
   "Given all magical girls and witches on the field, runs all possible
   battles. Returns a list of surviving magical girls and witches."
   [magical-girls witches]
-  (let [combat-results
-        (->> (for [magical-girl magical-girls, witch witches
-                   :when (discovered? magical-girl witch)]
-               [magical-girl witch])
-             (map #(apply fight %)))
-        the-dead (into #{} (map :loser combat-results))
-        the-victors (into #{} (map :winner combat-results))
-        the-fled (into #{} (keep #(:fled % nil) combat-results))]
+  (let [{:keys [the-dead the-victors the-fled]}
+        (combat-results magical-girls witches)]
     {:magical-girls
      (->> magical-girls
          (remove the-dead)
