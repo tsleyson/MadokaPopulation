@@ -183,6 +183,10 @@
          (entities/can-flee kriemhild-gretchen
                    (:combat-diff sayaka-v-gretchen))))))
 
+;; Note: last I checked, determine-outcome said Sayaka always won,
+;; so I don't know how reliable or meaningful this test is. But
+;; in the end, if you call fight, it seems to work. For now, a mystery
+;; which I have neither time nor energy to solve.
 (deftest test-rebound-randoms
   (testing "When we rebind random-source, we get the same answer."
     (let [first-attempt (binding
