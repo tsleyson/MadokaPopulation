@@ -49,6 +49,9 @@
 (def ultimate-madoka-v-gretchen
   (events/get-combat-info ultimate-madoka kriemhild-gretchen))
 
+;; This is a hack to test private methods.
+(def randoms-in-range #'madoka-population.events/randoms-in-range)
+
 ;;;; Helper functions and macros.
 (defn within-world?
   [& points]
@@ -74,6 +77,16 @@
      "fled" (float (/ (:fled freqs# 0) ~rounds))]))
 
 ;;;; Henceforth begin the tests.
+
+(deftest test-randoms-in-range
+  (testing "Normal use."
+    (let [sample (randoms-in-range 10 :mean 0.5 :sd 0.1)]
+      (is (= 10 (count sample)))
+      (is (every? #(<= 0 % 1) sample))))
+  (testing "Without passing a standard deviation"
+    (let [sample (randoms-in-range 10 :mean 0.5)]
+      (is (= 10 (count sample)))
+      (is (every? #(<= 0 % 1) sample)))))
 
 (deftest test-circle-overlap
   (testing "Overlapping circles are detected."

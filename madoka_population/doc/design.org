@@ -154,12 +154,20 @@ At the time of a witch’s birth, it spawns a random number of familiars between
 
 *** Incubators
 
-The simulation starts with some number of Incubators randomly spread across the grid. Incubators will move to a random square +at random intervals (determined by an exponential distribution)+ [Incubators have no reason to limit the number of magical girls they create; if some can’t survive, it just means more witches, so let it rip. So Incubators try to create a new magical girl every turn] and try to spawn a magical girl. They will succeed with probability p. The number of Incubators and the success probability of their attempts are parameters to the simulation.
+The simulation starts with some number of Incubators randomly spread across the grid. Incubators will move to a random square +at random intervals (determined by an exponential distribution)+ [Incubators have no reason to limit the number of magical girls they create; if some can’t survive, it just means more witches, so let it rip. So Incubators try to create a new magical girl every turn] and try to spawn a magical girl. They will succeed with probability p. The number of Incubators and the success probability of their attempts are parameters to the simulation. (Now changed to the mean probability of the Incubators’ success, because, really, who wants to type in a bunch of doubles, right? Better to just give up a little control and let it be somewhat random.)
 
 Incubators are essentially ignored by the other actors in the simulation. 
 
   - Success: A number between 0 and 1 which indicates the likelihood of
     the Incubator succeeding at creating a magical girl. 
+** Input format
+   A file containing a Clojure map, which will be read in as
+   EDN. Should be a map from symbols to keys (not keywords). Later we
+   can also support keywords if it’s useful because I have a function
+   to convert keywords to symbols.
+
+   See config_schema.edn under resources for an example with all the
+   currently allowed keys.
 ** Problems [updated as we go]
 *** Entity problems
 1. Sayaka runs away from Gertrud too much. About half the time. That makes sense since the ratio of her and Gertrud's combat differential and her combat stat is about 0.5, so about half the time the random number should be below the threshold, and about half the time it should be above. That’s about the only damn thing here that does make sense.

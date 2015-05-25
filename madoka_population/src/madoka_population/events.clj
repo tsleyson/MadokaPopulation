@@ -8,6 +8,9 @@ randomness."
   (java.util.Random.))
 
 ;;;; Utilities
+(defn in-0->1
+  [x]
+  (<= 0 x 1))
 
 (defn- rand-angle
   "Returns a random number between 0 and 2*pi, which can be
@@ -15,6 +18,19 @@ randomness."
   []
   (* Math/PI (* 2 (.nextDouble random-source))))
 ;; Took the (* 2 (.nextDouble ...)) part from the source of rand.
+
+(defn- randoms-in-range
+  "Generates a sample from a random normal distribution bound to the
+  range between 0 and 1."
+  [size & {:keys [mean sd] :or {mean 0.5, sd 0.01}}]
+  (loop [sample (stats/sample-normal size :mean mean :sd sd)]
+    (if (every? in-0->1 sample)
+      sample
+      (let [valid-sample (filter in-0->1 sample)]
+        (recur
+         (concat valid-sample
+                 (stats/sample-normal
+                  (- size (count valid-sample)) :mean mean :sd sd)))))))
 
 ;;;; Movement-related functions
 
@@ -89,6 +105,12 @@ randomness."
                                      magical-girls))]
     {:magical-girls (remove despairing magical-girls)
      :witches (concat witches (map entities/new-witch despairing))}))
+
+(defn spawn-incubators
+  "Called once at the beginning of the simulation."
+  [incubator-count mean-incubator-success]
+  (map entities/->Incubator
+       (randoms-in-range incubator-count :mean mean-incubator-success)))
 
 ;;;; Combat related functions
 
