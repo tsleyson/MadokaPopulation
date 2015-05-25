@@ -1,7 +1,8 @@
 (ns madoka-population.state)
 
 ;; Could be (def keyword->symbol (comp symbol #(subs % 1) str)), which
-;; is pretty cool but can't have a precondition.
+;; is pretty cool but can't have a precondition. (This is where static
+;; typing could come in handy.
 (defn keyword->symbol
   "Converts a keyword into a symbol via a string."
   [kw]

@@ -23,13 +23,31 @@
   "Returns the initial state bundle for the simulation, based on the
   input parameters."
   []
-  )
+  {:incubators (events/spawn-incubators
+                incubator-count incubator-mean-success)
+   :magical-girls (repeatedly starting-magical-girls
+                              #(entities/new-magical-girl world-size))
+   :witches (map new-witch
+                 (repeatedly starting-witches
+                             #(entities/new-magical-girl world-size)))
+   :turns 0})
 
 (defn update-state-bundle
-  [old-bundle])
+  [bundle]
+  )
 
 (defn draw
-  [state-bundle])
+  [{:keys [magical-girls witches turns] :as bundle}]
+  (qc/background 150 150 150)
+  (qc/text (explanatory-text bundle) 10 10)
+  (qc/fill 250 150 150) ;; Mahou shoujo pink.
+  (doseq [magical-girl magical-girls]
+    (let [[x y] (:position magical-girl)]
+      (qc/ellipse x y 5 5)))
+  (qc/fill 0 0 0) ;; Witch black.
+  (doseq [witch witches]
+    (let [[x y] (:position witch)]
+      (qc/ellipse x y 10 10))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; This will be gone in the final product. We'll use the main below

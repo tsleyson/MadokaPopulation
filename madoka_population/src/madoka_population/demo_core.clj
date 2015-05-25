@@ -1,9 +1,13 @@
 (ns madoka-population.core
   (:gen-class)
   (:require [madoka-population.entities :as entities]
+            [madoka-population.events :as events]
             [quil.core :as qc]
             [quil.middleware :as qm]
             [taoensso.timbre.profiling :as profiling]))
+
+(def rand-angle
+  (* Math/PI (rand 2)))
 
 (def world-size
   "The size of the world map, in pixels"
