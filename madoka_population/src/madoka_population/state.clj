@@ -18,7 +18,7 @@
   "Takes a map of symbols to values and binds those values to those
   symbols in the current namespace."
   [binding-map]
-  `(do ~@(map #(list 'def (first %) (second %)) binding-map)))
+  `(do ~@(map #(list 'def (first %) (second %)) ~binding-map)))
 
 (defmacro with-bindings-from
   "Takes a map of keywords to values and executes forms in a scope with

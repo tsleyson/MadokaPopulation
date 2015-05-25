@@ -19,6 +19,18 @@
 (def starting-witches 0)
 ;;;;;;;;;;;;;; END STUFF THAT GOES AWAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defn summary-text
+  "Returns a summary of the current state for printing on screen."
+  [{:keys [magical-girls witches incubators turn] :as bundle}]
+  (format (str "Magical Girls: %d\n"
+               "Witches: %d\n"
+               "Incubators: %d\n"
+               "Turns: %d")
+          (count magical-girls)
+          (count witches)
+          (count incubators)
+          turn))
+
 (defn new-state-bundle
   "Returns the initial state bundle for the simulation, based on the
   input parameters."
@@ -27,19 +39,21 @@
                 incubator-count incubator-mean-success)
    :magical-girls (repeatedly starting-magical-girls
                               #(entities/new-magical-girl world-size))
-   :witches (map new-witch
+   :witches (map entities/new-witch
                  (repeatedly starting-witches
                              #(entities/new-magical-girl world-size)))
+   ;; Make some magical girls and immediately turn them into witches
+   ;; (the poor dears) to get the initial batch of witches.
    :turns 0})
 
 (defn update-state-bundle
-  [bundle]
-  )
+  [{:keys [magical-girls witches incubators turns] :as bundle}]
+  bundle)
 
 (defn draw
   [{:keys [magical-girls witches turns] :as bundle}]
   (qc/background 150 150 150)
-  (qc/text (explanatory-text bundle) 10 10)
+  (qc/text (summary-text bundle) 10 10)
   (qc/fill 250 150 150) ;; Mahou shoujo pink.
   (doseq [magical-girl magical-girls]
     (let [[x y] (:position magical-girl)]
