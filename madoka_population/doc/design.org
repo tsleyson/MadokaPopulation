@@ -187,3 +187,143 @@ Lots of hiccuping and freezing as the number of entities on screen grows. My gue
 I have no idea how Rich Hickey’s ants demo deals with this. Maybe a weakness in Quil? Maybe I can get around it by using the OpenGL rendering mode?
 
 For now going to just add witches, and then recode the whole thing to use sequential code instead of agents and proceed with Quil’s frame rate. Maybe use coarser-grained parallelism (e.g. one thread pool working across a list, like pmap or something, instead of each entity being an agent on its own.) Brian Carper had problems with agent performance too, when he tried to make every entity in his RPG game its own agent.
+*** add-vars-to-ns macro problems
+The first version
+
+    #+BEGIN_SRC clojure
+      (defmacro add-vars-to-ns
+        [binding-map]
+        `(do ~@(map #(list 'def (first %) (second %)) binding-map)))
+    #+END_SRC
+
+Worked great with literal maps. Didn’t work with maps stored in vars, because =binding-map= is never actually evaluated, which is fine if it refers to a literal map because it will be replaced with that map in the macroexpansion, but if it refers to a var that refers to a map, it doesn’t work because it just gets replaced with that literal symbol.
+
+#+NAME: The second version, or, So evaluate binding-map, then
+#+begin_src clojure
+  (defmacro add-vars-to-ns
+    [binding-map]
+    `(do ~@(map #(list 'def (first %) (second %)) ~binding-map)))
+#+end_src
+
+Doesn’t work because you can’t use unquote inside a ~@ form; it has to be directly inside a quoted form, at no level of nesting. 
+
+#+name: The third version, or, So quote the form, then
+#+begin_src clojure
+  (defmacro add-vars-to-ns
+    [binding-map]
+    `(do ~@`(map #(list 'def (first %) (second %)) ~binding-map)))  
+#+end_src
+
+Doesn’t work because it expands to this:
+
+#+begin_src clojure
+  (do map #(list def (first %) (second %)) config)
+#+end_src
+
+assuming that you passed =config= as the argument. I.e. it doesn’t evaluate the map form, it splices all of the map form’s top-level symbols into the =do=. Just like we asked for.
+
+The main problem here was that we needed =binding-map= to already be evaluated in order to use it inside the syntax-quoted form, but there wasn’t any good time to evaluate it because the only time it appeared in the body was in the =map= form. We couldn’t evaluate it there because that form was being spliced into a =do=.
+
+Hence this version.
+
+#+name: The one with a let
+#+begin_src clojure
+  (defmacro add-vars-to-ns
+    [binding-map]
+    `(let [m# ~binding-map]
+       (do ~@(map #(list 'def (first %) (second %)) m#))))
+#+end_src
+
+This was no good because...well, I’ll let the compiler speak for itself:
+
+=CompilerException java.lang.RuntimeException: Unable to resolve symbol: m# in this context, compiling:(/tmp/form-init7952595777459953677.clj:1:42)=
+
+A slight modification of this /almost/ worked.
+
+#+name: Got the correct form, but it isn’t evaluated
+#+begin_src clojure
+  (defmacro add-vars-to-ns
+    [binding-map]
+    `(let [m# ~binding-map]
+       `(do ~@(map #(list 'def (first %) (second %)) m#))))
+#+end_src
+
+This returns =(do (def a 1) (def b 2))=, assuming you passed some symbol that contains a map ={a 1, b 2}=. Unfortunately I have no idea how to make it evaluate the form without doing something that screws up something else. If I just remove the backtick on the =do= form, I can’t use =~@= inside it. If I try to /only/ quote the =do= form, I can’t evaluate the binding map inside the =let=. 
+
+I also tried a few different versions with a function that returned the correct form, hoping that would help by evaluating the binding map for me when the function was called. It didn’t help.
+
+#+name: Version with function
+#+begin_src clojure
+  (defn pairs-to-def
+    [m]
+    (map #(list 'def (first %) (second %)) m))
+  
+  (defmacro add-vars-to-ns
+    [binding-map]
+    (let [p# `(pairs-to-def ~m)] p#))
+  ;; Returns a list of the correct bindings
+  
+  (defmacro add-vars-to-ns
+    [m]
+    (let [p# `(pairs-to-def ~m)] `(do ~@p#)))
+  ;; Gets the unevaluated form spliced in again
+#+end_src
+
+I finally realized that if I was getting the correct form, and I could eval that form outside the macro to get what I wanted, I could also eval the form inside the macro.
+
+#+name: The really complicated but working version with eval
+#+begin_src clojure
+  (defmacro add2
+      [binding-map]
+      `(let [m# ~binding-map]
+         (eval `(do ~@(map #(list 'def (first %) (second %)) m#)))))
+#+end_src
+
+And that works, but geez, look at that horrible thing. Nested syntax quotes, especially.
+
+You can actually shorten it up a little and get rid of the nested syntax quotes like this:
+
+#+name Eval just the binding map
+#+begin_src clojure
+  (defmacro add-vars-to-ns
+    [binding-map]
+    `(do ~@(map #(list 'def (first %) (second %)) (eval binding-map))))
+#+end_src
+
+And you can actually make it work with literal maps, provided you use keywords as the keys instead of symbols, or write something that can convert any of keywords, strings, or symbols into symbols.
+
+#+name: with keywords
+#+begin_src clojure
+  (def keyword->symbol
+    (comp symbol #(subs % 1) str))
+  
+  (defn convert-to-symbol
+    [key]
+    (condp = (type key)
+      clojure.lang.Keyword (keyword->symbol key)
+      clojure.lang.Symbol 'key
+      java.lang.String (symbol key)))
+  
+  (defmacro add-vars-to-ns
+    [binding-map]
+    `(do ~@(map #(list 'def (convert-to-symbol (first %)) (second %))
+                (eval binding-map))))
+#+end_src
+
+This version still doesn’t work with literal maps that have symbols for keys unless you quote the input map. But, not too shabby, I think. (I might put it on Code Review to see what someone else thinks.)
+
+Except it fucking doesn’t work outside the REPL.
+
+=Caused by: java.lang.UnsupportedOperationException: Can't eval locals
+	at clojure.lang.Compiler$LocalBindingExpr.eval(Compiler.java:5724)
+	at clojure.lang.Compiler.eval(Compiler.java:6708)
+	at clojure.lang.Compiler.eval(Compiler.java:6666)
+	at clojure.core$eval.invoke(core.clj:2927)
+	at madoka_population.state$add_vars_to_ns.invoke(state.clj:33)
+	at clojure.lang.Var.invoke(Var.java:388)
+	at clojure.lang.AFn.applyToHelper(AFn.java:160)
+	at clojure.lang.Var.applyTo(Var.java:700)
+	at clojure.lang.Compiler.macroexpand1(Compiler.java:6552)
+	at clojure.lang.Compiler.analyzeSeq(Compiler.java:6630)=
+
+Why in God’s name it works /in/ the REPL, I can’t fathom. But it doesn’t work outside the REPL, so it’s worthless.

@@ -12,13 +12,25 @@
       (subs 1)
       symbol))
 
+(defn convert-to-symbol
+  "Converts a keyword, string, or symbol into a symbol."
+  [key]
+  (condp = (type key)
+    clojure.lang.Keyword (keyword->symbol key)
+    java.lang.String (symbol key)
+    clojure.lang.Symbol key))
+
 ;; See http://stackoverflow.com/a/29759517/3376926. I modified that
 ;; answer to do a def instead of a defrecord.
+;; See also my extensive notes in the design doc on how the current version
+;; came to be.
 (defmacro add-vars-to-ns
-  "Takes a map of symbols to values and binds those values to those
-  symbols in the current namespace."
+  "Takes a map of keys to values and binds those values to symbols in
+  the current namespace whose names are the keys under conversion by
+  convert-to-symbol."
   [binding-map]
-  `(do ~@`(map #(list 'def (first %) (second %)) ~binding-map)))
+  `(do ~@(map #(list 'def (convert-to-symbol (first %)) (second %))
+              ~binding-map)))
 
 (defmacro with-bindings-from
   "Takes a map of keywords to values and executes forms in a scope with

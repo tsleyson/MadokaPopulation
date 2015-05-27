@@ -39,10 +39,10 @@
 (defn add-config-state
   "Reads config map from a file and adds bindings to namespace."
   [filename]
-  (let [inputs (-> filename
-                   slurp
-                   edn/read-string)]
-    (state/add-vars-to-ns inputs)))
+  (-> filename
+      slurp
+      edn/read-string
+      state/add-vars-to-ns))
 
 ;;;; State management
 
