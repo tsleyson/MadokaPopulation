@@ -2,7 +2,8 @@
   (:require [clojure.test :refer :all]
             [incanter.stats :as stats]
             [madoka-population.events :as events]
-            [madoka-population.entities :as entities]))
+            [madoka-population.entities :as entities]
+            [madoka-population.core :refer [within-world-of-size?]]))
 
 ;;;; IDENTIFICATION SECTION
 
@@ -53,9 +54,7 @@
 (def randoms-in-range #'madoka-population.events/randoms-in-range)
 
 ;;;; Helper functions and macros.
-(defn within-world?
-  [& points]
-  (every? #(<= 0 % world-size) points))
+(def within-world? (within-world-of-size? world-size))
 
 ;; Note: I was moved to tears because the second I realized I could
 ;; get the original symbol as a string by using a macro, so I could
@@ -226,7 +225,7 @@
 ;;;; acceptable answers, so I want it to just print the answers so I can
 ;;;; inspect them.
 
-(deftest test-fighting
+(deftest ^:printing test-fighting
   (testing "How often each opponent wins (Gertrud vs. Sayaka)."
     (apply (partial printf "%s: %.3f\n%s: %.3f\n%s: %.3f\n")
            (count-wins-of sayaka gertrud 1000)))

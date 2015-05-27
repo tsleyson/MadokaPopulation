@@ -4,4 +4,5 @@
     world-size 200
     starting-magical-girls 0
     starting-witches 0
+    turns-per-day 60
 }

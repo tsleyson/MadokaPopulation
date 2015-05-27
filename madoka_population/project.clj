@@ -7,6 +7,8 @@
                  [incanter "1.5.6"]
                  [quil "2.2.5"]
                  [com.taoensso/timbre "3.3.1"]]
+  :test-selectors {:non-printing (complement :printing)
+                   :all (constantly true)}
   :main ^:skip-aot madoka-population.core
   :target-path "target/%s"
   :profiles {:uberjar {:aot :all}})

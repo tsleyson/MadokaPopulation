@@ -70,12 +70,14 @@
 (defn new-magical-girl
   "Creates a new magical girl with random stats."
   [world-size]
-  (->MagicalGirl
-   (stats/sample-exp 1 :rate 1/50)
-   (stats/sample-exp 1 :rate 1/5)
-   0.0
-   (first (stats/sample-uniform 1 :min 0.01 :max 0.1))
-   (vec (repeatedly 2 #(rand world-size)))))
+  (let [home (vec (repeatedly 2 #(rand world-size)))]
+    (assoc (->MagicalGirl
+            (stats/sample-exp 1 :rate 1/50)
+            (stats/sample-exp 1 :rate 1/5)
+            0.0
+            (first (stats/sample-uniform 1 :min 0.01 :max 0.1))
+            home)
+      :position home)))
 
 (defn new-witch
   "Creates a new witch based on a magical girl."
@@ -86,6 +88,8 @@
       (* (:tracking magical-girl) (:tracking magical-girl)))
    (:position magical-girl)))
 
+;; Not really used, in favor of events/spawn-incubators, which lets
+;; us control the mean success rate.
 (defn new-incubator
   "Creates a new Incubator with random success rate."
   []

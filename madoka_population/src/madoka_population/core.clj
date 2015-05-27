@@ -12,16 +12,21 @@
 ;; In the final program this will be added to the namespace by main
 ;; using the add-vars-to-ns macro.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(def world-size 200)
-(def incubator-count 10)
-(def incubator-mean-success 0.5)
-(def starting-magical-girls 0)
-(def starting-witches 0)
+;; (def world-size 200)
+;; (def incubator-count 10)
+;; (def incubator-mean-success 0.5)
+;; (def starting-magical-girls 5)
+;; (def starting-witches 5)
 ;;;;;;;;;;;;;; END STUFF THAT GOES AWAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;; Helpers
+(defn within-world-of-size?
+  [size]
+  (fn [& points] (every? #(<= 0 % size) points)))
 
 (defn summary-text
   "Returns a summary of the current state for printing on screen."
-  [{:keys [magical-girls witches incubators turn] :as bundle}]
+  [{:keys [magical-girls witches incubators turns] :as bundle}]
   (format (str "Magical Girls: %d\n"
                "Witches: %d\n"
                "Incubators: %d\n"
@@ -29,7 +34,17 @@
           (count magical-girls)
           (count witches)
           (count incubators)
-          turn))
+          turns))
+
+(defn add-config-state
+  "Reads config map from a file and adds bindings to namespace."
+  [filename]
+  (let [inputs (-> filename
+                   slurp
+                   edn/read-string)]
+    (state/add-vars-to-ns inputs)))
+
+;;;; State management
 
 (defn new-state-bundle
   "Returns the initial state bundle for the simulation, based on the
@@ -44,15 +59,23 @@
                              #(entities/new-magical-girl world-size)))
    ;; Make some magical girls and immediately turn them into witches
    ;; (the poor dears) to get the initial batch of witches.
-   :turns 0})
+   :turns 0
+   :within-world? (within-world-of-size? world-size)})
+
+(defn setup
+  []
+  (qc/smooth)
+  (qc/frame-rate 60)
+  (new-state-bundle))
 
 (defn update-state-bundle
   [{:keys [magical-girls witches incubators turns] :as bundle}]
-  bundle)
+  (assoc bundle :turns (inc turns)))
 
 (defn draw
   [{:keys [magical-girls witches turns] :as bundle}]
   (qc/background 150 150 150)
+  (qc/fill 0 0 0)
   (qc/text (summary-text bundle) 10 10)
   (qc/fill 250 150 150) ;; Mahou shoujo pink.
   (doseq [magical-girl magical-girls]
@@ -68,30 +91,30 @@
 ;;;; from a runnable jar. The defsketch and hardcoded input map are
 ;;;; for testing only.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-(qc/defsketch test-sketch
-  :title "Madoka Population Simulator"
-  :setup new-state-bundle
-  :update update-state-bundle
-  :draw draw
-  :middleware [qm/fun-mode]
-  :features [:exit-on-close])
+;; (qc/defsketch test-sketch
+;;   :title "Madoka Population Simulator"
+;;   :setup setup
+;;   :update update-state-bundle
+;;   :draw draw
+;;   :middleware [qm/fun-mode]
+;;   ;:features [:exit-on-close]
+;;   )
 ;;;;;;;;;;;;;;;;;;;; END STUFF THAT WILL GO AWAY ;;;;;;;;;;;;;;;;;;;;
 
 (defn -main
   "Entry point for the program, initializes input parameters and
   starts the sketch going."
   [& args]
-  (let [inputs (-> (first args)
-                   slurp
-                   edn/read-string)]
-    (state/add-vars-to-ns inputs))
+  (add-config-state (first args))
   (qc/sketch
    :title "Madoka Population Simulator"
-   :setup new-state-bundle
+   :setup setup
    :update update-state-bundle
    :draw draw
    :middleware [qm/fun-mode]
-   :features [:exit-on-close]))
+   ;:features [:exit-on-close]
+   )
+  (println "Hello Madoka"))
 
 ;; 1. Put the input parameters (incubator number, mean success rate,
 ;; starting number of magical girls and witches [it should still be
