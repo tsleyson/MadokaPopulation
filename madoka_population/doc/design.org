@@ -301,7 +301,7 @@ And you can actually make it work with literal maps, provided you use keywords a
     [key]
     (condp = (type key)
       clojure.lang.Keyword (keyword->symbol key)
-      clojure.lang.Symbol 'key
+      clojure.lang.Symbol key
       java.lang.String (symbol key)))
   
   (defmacro add-vars-to-ns
@@ -310,7 +310,7 @@ And you can actually make it work with literal maps, provided you use keywords a
                 (eval binding-map))))
 #+end_src
 
-This version still doesn’t work with literal maps that have symbols for keys unless you quote the input map. But, not too shabby, I think. (I might put it on Code Review to see what someone else thinks.)
+This version still doesn’t work with literal maps that have symbols for keys unless you quote the input map.
 
 Except it fucking doesn’t work outside the REPL.
 
@@ -327,3 +327,38 @@ Except it fucking doesn’t work outside the REPL.
 	at clojure.lang.Compiler.analyzeSeq(Compiler.java:6630)=
 
 Why in God’s name it works /in/ the REPL, I can’t fathom. But it doesn’t work outside the REPL, so it’s worthless.
+
+(It works in the REPL because I wasn’t actually evaling locals in the REPL; I was evaling a namespace-level var, which is fine at compile time because namespace-level vars are determined at compile time; and I was evaling literal maps, which was fine because literal maps are also available at compile time. In core.clj, I was trying to use it on a local variable of the function where it was called, defined in a =let=. Basically, it’s not that you can’t eval locals, it’s that you can’t eval anything that isn’t known at compile time inside a macro, because macros are expanded at compile time. It also fails if I try to just pass a value straight in, because that value isn’t known until runtime. But the error message is different because the compiler doesn’t actually realize that’s the problem unless it can see some kind of binding form around where the macro is expanded.)
+
+Here’s another failed attempt:
+
+#+name: The failed version with for
+#+begin_src clojure
+  (defmacro add [m]
+    (cons 'do 
+          (for [pair m]
+            `(def ~(first pair) ~(second pair)))))
+#+end_src
+
+It fails for exactly the same reason, because it’s exactly the same code, except with =for= instead of =map=.
+
+I have come to a philosophical understanding of why this venture was doomed to failure. Essentially, macros add code at compile time. They revolve around compile time and things which can be determined at compile time.
+
+What this macro is supposed to do, though, involves data which is only available at runtime. The whole problem appears because I need to evaluate the =m= symbol, but it evaluates to the =config= symbol when I pass in =config=. But =config= needs to be evaluated in turn to get the actual map. However, the actual map exists only at runtime, because it’s been read in from the file and stored in the =config= symbol. In other words, you I got my runtime in the macro system’s compile time, and it’s not happy.
+
+Despite Paul Graham’s usual witticisms about eval being stupid, that’s probably the only way to get this to work the way I want. (I always knew there was a reason why I wasn’t a fan of Paul Graham.)
+
+So this is the way to get it to work using =eval=.
+
+#+name: the one with eval that probably works, hopefully.
+#+begin_src clojure
+  (defn add-vars-to-ns
+    [binding-map]
+    (eval
+     (cons 'do
+           (map
+            #(list 'def (convert-to-symbol (first %)) (second %))
+            binding-map))))
+#+end_src
+
+It does work in the REPL. I will presently try it out in the real code and run =lein test=, but not now.

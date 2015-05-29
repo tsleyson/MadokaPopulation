@@ -30,7 +30,7 @@
   convert-to-symbol."
   [binding-map]
   `(do ~@(map #(list 'def (convert-to-symbol (first %)) (second %))
-              ~binding-map)))
+              binding-map)))
 
 (defmacro with-bindings-from
   "Takes a map of keywords to values and executes forms in a scope with
