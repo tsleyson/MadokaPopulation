@@ -36,31 +36,34 @@
           (count incubators)
           turns))
 
-(defn add-config-state
+(defn get-config-map
   "Reads config map from a file and adds bindings to namespace."
   [filename]
   (-> filename
       slurp
-      edn/read-string
-      state/add-vars-to-ns))
+      edn/read-string))
 
 ;;;; State management
 
 (defn new-state-bundle
-  "Returns the initial state bundle for the simulation, based on the
-  input parameters."
-  []
-  {:incubators (events/spawn-incubators
-                incubator-count incubator-mean-success)
-   :magical-girls (repeatedly starting-magical-girls
-                              #(entities/new-magical-girl world-size))
-   :witches (map entities/new-witch
-                 (repeatedly starting-witches
-                             #(entities/new-magical-girl world-size)))
-   ;; Make some magical girls and immediately turn them into witches
-   ;; (the poor dears) to get the initial batch of witches.
-   :turns 0
-   :within-world? (within-world-of-size? world-size)})
+  "Returns a closure around the initial state bundle for the
+  simulation, based on the input parameters."
+  [{:syms
+    [incubator-count incubator-mean-success starting-magical-girls
+     starting-witches world-size turns-per-day]}]
+  (fn []
+    {:incubators (events/spawn-incubators
+                  incubator-count incubator-mean-success)
+     :magical-girls (repeatedly starting-magical-girls
+                                #(entities/new-magical-girl world-size))
+     :witches (map entities/new-witch
+                   (repeatedly starting-witches
+                               #(entities/new-magical-girl world-size)))
+     ;; Make some magical girls and immediately turn them into witches
+     ;; (the poor dears) to get the initial batch of witches.
+     :turns 0
+     :turns-per-day turns-per-day
+     :within-world? (within-world-of-size? world-size)}))
 
 (defn setup
   []
