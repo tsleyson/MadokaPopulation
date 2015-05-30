@@ -28,5 +28,3 @@
               "Witches: " starting-witches "\n"
               "Incubators: " incubator-count "\n"
               "Turns: " (:turns bundle)))))
-
-(deftest test-adding-config-state)

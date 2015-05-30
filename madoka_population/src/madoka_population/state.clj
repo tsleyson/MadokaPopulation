@@ -20,17 +20,16 @@
     java.lang.String (symbol key)
     clojure.lang.Symbol key))
 
-;; See http://stackoverflow.com/a/29759517/3376926. I modified that
-;; answer to do a def instead of a defrecord.
 ;; See also my extensive notes in the design doc on how the current version
 ;; came to be.
-(defmacro add-vars-to-ns
-  "Takes a map of keys to values and binds those values to symbols in
-  the current namespace whose names are the keys under conversion by
-  convert-to-symbol."
+(defn add-vars-to-ns
+  "Adds bindings in binding-map as bound vars in the current namespace."
   [binding-map]
-  `(do ~@(map #(list 'def (convert-to-symbol (first %)) (second %))
-              binding-map)))
+  (eval
+   (cons 'do
+         (map
+          #(list 'def (convert-to-symbol (first %)) (second %))
+          binding-map))))
 
 (defmacro with-bindings-from
   "Takes a map of keywords to values and executes forms in a scope with
