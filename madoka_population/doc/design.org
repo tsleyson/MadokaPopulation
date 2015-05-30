@@ -362,3 +362,12 @@ So this is the way to get it to work using =eval=.
 #+end_src
 
 It does work in the REPL. I will presently try it out in the real code and run =lein test=, but not now.
+
+The whole state namespace has been just a nightmare. I added a macro =symbols-interned?= that checks whether a particular symbol is interned in the current namespace. It turns out the built-in function =resolve= does this, so here’s a simpler version of that macro.
+
+#+name: version of symbols-interned? with resolve
+#+begin_src clojure
+  (defmacro symbols-interned?
+    [& symbols]
+    `(and ~@(map resolve symbols)))
+#+end_src
