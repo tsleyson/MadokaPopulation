@@ -49,10 +49,12 @@
   simulation, based on the input parameters."
   [{:syms
     [incubator-count incubator-mean-success starting-magical-girls
-     starting-witches world-size turns-per-day]}]
+     starting-witches world-size turns-per-day]}
+   & {:keys [testing] :or {testing false}}]
   (fn []
-    (qc/smooth)
-    (qc/frame-rate 60)
+    (when (not testing)
+      (qc/smooth)
+      (qc/frame-rate 60))
     {:incubators (events/spawn-incubators
                   incubator-count incubator-mean-success)
      :magical-girls (repeatedly starting-magical-girls
@@ -83,21 +85,6 @@
   (doseq [witch witches]
     (let [[x y] (:position witch)]
       (qc/ellipse x y 10 10))))
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; This will be gone in the final product. We'll use the main below
-;;;; from a runnable jar. The defsketch and hardcoded input map are
-;;;; for testing only.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; (qc/defsketch test-sketch
-;;   :title "Madoka Population Simulator"
-;;   :setup setup
-;;   :update update-state-bundle
-;;   :draw draw
-;;   :middleware [qm/fun-mode]
-;;   ;:features [:exit-on-close]
-;;   )
-;;;;;;;;;;;;;;;;;;;; END STUFF THAT WILL GO AWAY ;;;;;;;;;;;;;;;;;;;;
 
 (defn -main
   "Entry point for the program, initializes input parameters and
