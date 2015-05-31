@@ -2,22 +2,18 @@
   (:gen-class)
   (:require [madoka-population.entities :as entities]
             [madoka-population.events :as events]
-            [madoka-population.state :as state]
             [quil.core :as qc]
             [quil.middleware :as qm]
             [clojure.edn :as edn]
             [clojure.java.io :as io]))
 
-;;;;;;;;;;;;;; STUFF THAT WILL GO AWAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; In the final program this will be added to the namespace by main
-;; using the add-vars-to-ns macro.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; (def world-size 200)
-;; (def incubator-count 10)
-;; (def incubator-mean-success 0.5)
-;; (def starting-magical-girls 5)
-;; (def starting-witches 5)
-;;;;;;;;;;;;;; END STUFF THAT GOES AWAY ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(def default-config
+  "The default config used when no map provided."
+  '{world-size 200
+    incubator-count 10
+    incubator-mean-success 0.5
+    starting-magical-girls 5
+    starting-witches 5})
 
 ;;;; Helpers
 (defn within-world-of-size?
@@ -36,37 +32,41 @@
           (count incubators)
           turns))
 
-(defn add-config-state
-  "Reads config map from a file and adds bindings to namespace."
+(defn get-config
+  "Reads config map from a file."
   [filename]
-  (-> filename
-      slurp
-      edn/read-string
-      state/add-vars-to-ns))
+  {:pre [(or (= java.lang.String (type filename)) (nil? filename))]}
+  (if (nil? filename)
+    default-config
+    (-> filename
+        slurp
+        edn/read-string)))
 
 ;;;; State management
 
-(defn new-state-bundle
-  "Returns the initial state bundle for the simulation, based on the
-  input parameters."
-  []
-  {:incubators (events/spawn-incubators
-                incubator-count incubator-mean-success)
-   :magical-girls (repeatedly starting-magical-girls
-                              #(entities/new-magical-girl world-size))
-   :witches (map entities/new-witch
-                 (repeatedly starting-witches
-                             #(entities/new-magical-girl world-size)))
-   ;; Make some magical girls and immediately turn them into witches
-   ;; (the poor dears) to get the initial batch of witches.
-   :turns 0
-   :within-world? (within-world-of-size? world-size)})
-
-(defn setup
-  []
-  (qc/smooth)
-  (qc/frame-rate 60)
-  (new-state-bundle))
+(defn setup-function
+  "Returns a closure around the initial state bundle for the
+  simulation, based on the input parameters."
+  [{:syms
+    [incubator-count incubator-mean-success starting-magical-girls
+     starting-witches world-size turns-per-day]}
+   & {:keys [testing] :or {testing false}}]
+  (fn []
+    (when (not testing)
+      (qc/smooth)
+      (qc/frame-rate 60))
+    {:incubators (events/spawn-incubators
+                  incubator-count incubator-mean-success)
+     :magical-girls (repeatedly starting-magical-girls
+                                #(entities/new-magical-girl world-size))
+     :witches (map entities/new-witch
+                   (repeatedly starting-witches
+                               #(entities/new-magical-girl world-size)))
+     ;; Make some magical girls and immediately turn them into witches
+     ;; (the poor dears) to get the initial batch of witches.
+     :turns 0
+     :turns-per-day turns-per-day
+     :within-world? (within-world-of-size? world-size)}))
 
 (defn update-state-bundle
   [{:keys [magical-girls witches incubators turns] :as bundle}]
@@ -86,35 +86,20 @@
     (let [[x y] (:position witch)]
       (qc/ellipse x y 10 10))))
 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;; This will be gone in the final product. We'll use the main below
-;;;; from a runnable jar. The defsketch and hardcoded input map are
-;;;; for testing only.
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; (qc/defsketch test-sketch
-;;   :title "Madoka Population Simulator"
-;;   :setup setup
-;;   :update update-state-bundle
-;;   :draw draw
-;;   :middleware [qm/fun-mode]
-;;   ;:features [:exit-on-close]
-;;   )
-;;;;;;;;;;;;;;;;;;;; END STUFF THAT WILL GO AWAY ;;;;;;;;;;;;;;;;;;;;
-
 (defn -main
   "Entry point for the program, initializes input parameters and
   starts the sketch going."
   [& args]
-  (add-config-state (first args))
   (qc/sketch
    :title "Madoka Population Simulator"
-   :setup setup
+   :setup (-> (first args)
+              get-config
+              setup-function)
    :update update-state-bundle
    :draw draw
    :middleware [qm/fun-mode]
    ;:features [:exit-on-close]
-   )
-  (println "Hello Madoka"))
+   ))
 
 ;; 1. Put the input parameters (incubator number, mean success rate,
 ;; starting number of magical girls and witches [it should still be

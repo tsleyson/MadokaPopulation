@@ -8,19 +8,25 @@
 (def incubator-mean-success 0.5)
 (def starting-magical-girls 5)
 (def starting-witches 5)
-(def bundle (core/new-state-bundle))
+(def bundle ;;die
+  )
 
 (deftest test-new-bundle
-  (testing "The state gets initialized correctly."
-    (is (= starting-magical-girls (count (:magical-girls bundle))))
-    (is (= starting-witches (count (:witches bundle))))
-    (is (= incubator-count (count (:incubators bundle))))
-    (is ((:within-world? bundle) (/ world-size 2)))
-    (is (zero? (:turns bundle))))
-  (testing "The magical girls and witches have positions."
-    (is (every? #(not (nil? %))
-                (map :position
-                     (concat (:magical-girls bundle) (:witches bundle)))))))
+  (let [test-bundle ((core/setup-function
+                      (core/get-config nil)
+                      :testing true))]
+    (testing "The state gets initialized correctly."
+      (are [expected actual] (= expected (count actual))
+           starting-magical-girls (:magical-girls test-bundle)
+           starting-witches (:witches test-bundle)
+           incubator-count (:incubators test-bundle))
+      (is ((:within-world? test-bundle) (/ world-size 2)))
+      (is (zero? (:turns test-bundle))))
+    (testing "The magical girls and witches have positions."
+      (is (every? #(not (nil? %))
+                  (map :position
+                       (concat (:magical-girls test-bundle)
+                               (:witches bundle))))))))
 
 (deftest test-summary-text
   (is (= (core/summary-text bundle)
@@ -28,3 +34,5 @@
               "Witches: " starting-witches "\n"
               "Incubators: " incubator-count "\n"
               "Turns: " (:turns bundle)))))
+
+;;;; Integration tests. 
