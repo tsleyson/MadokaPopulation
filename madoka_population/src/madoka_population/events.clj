@@ -1,6 +1,7 @@
 (ns madoka-population.events
   (:require [incanter.stats :as stats]
-            [madoka-population.entities :as entities]))
+            [madoka-population.entities :as entities]
+            [clojure.set :as set]))
 
 (def ^:dynamic random-source
   "The source of random numbers. Can be rebound for reproducible
@@ -8,7 +9,7 @@ randomness."
   (java.util.Random.))
 
 ;;;; Utilities
-(defn in-0->1
+(defn- in-0->1
   [x]
   (<= 0 x 1))
 
@@ -179,6 +180,9 @@ randomness."
   magical girls. Returns a map containing the dead, the victors, and
   the fled."
   [magical-girls witches]
+  {:post [(= #{} (set/intersection (:the-dead %)
+                                   (:the-victors %)
+                                   (:the-fled %)))]}
   (let [results (->> (for [magical-girl magical-girls, witch witches
                            :when (discovered? magical-girl witch)]
                        [magical-girl witch])

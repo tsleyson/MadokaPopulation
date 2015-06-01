@@ -17,6 +17,8 @@
 
 ;;;; Helpers
 (defn within-world-of-size?
+  "Returns a function which tests whether its argument is between 0
+  and size."
   [size]
   (fn [& points] (every? #(<= 0 % size) points)))
 

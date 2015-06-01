@@ -8,8 +8,7 @@
 (def incubator-mean-success 0.5)
 (def starting-magical-girls 5)
 (def starting-witches 5)
-(def bundle ;;die
-  )
+(def bundle ((core/setup-function (core/get-config nil) :testing true)))
 
 (deftest test-new-bundle
   (let [test-bundle ((core/setup-function
@@ -26,7 +25,7 @@
       (is (every? #(not (nil? %))
                   (map :position
                        (concat (:magical-girls test-bundle)
-                               (:witches bundle))))))))
+                               (:witches test-bundle))))))))
 
 (deftest test-summary-text
   (is (= (core/summary-text bundle)

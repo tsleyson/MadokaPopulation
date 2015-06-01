@@ -3,7 +3,8 @@
             [incanter.stats :as stats]
             [madoka-population.events :as events]
             [madoka-population.entities :as entities]
-            [madoka-population.core :refer [within-world-of-size?]]))
+            [madoka-population.core :refer [within-world-of-size?]])
+  (:import [java.util Random]))
 
 ;;;; IDENTIFICATION SECTION
 
@@ -29,7 +30,7 @@
 ;; destroying the world in ten days and pretty hard not to
 ;; notice, so it has 1 billion combat and discoverability.
 (def kriemhild-gretchen
-  (entities/->Witch 1e9 1e9 [-1 -1]))
+  (entities/->Witch 1e9 1e9 [200 200]))
 
 ;; Ultimate Madoka doesn't succumb to despair and she
 ;; can defeat any witch, even her own witch form which
@@ -104,9 +105,9 @@
   (defn circle [h k r]
     (fn [t] [(+ h (* r (incanter.core/cos t)))
              (+ k (* r (incanter.core/sin t)))]))
-  (-> (parametric-plot (circle 35 35 15) (- Math/PI) Math/PI)
-      (add-parametric (circle 10 10 24) (- Math/PI) Math/PI)
-      view))
+  (-> (incanter.charts/parametric-plot (circle 35 35 15) (- Math/PI) Math/PI)
+      (incanter.charts/add-parametric (circle 10 10 24) (- Math/PI) Math/PI)
+      incanter.charts/view))
 ;;; That code plots two circles with centers at 35, 35 and 10, 10 and radii
 ;;; 15 and 24. 
 
@@ -140,6 +141,8 @@
       (is (= (:home mami)
              (:position (events/move (assoc mami :heading Math/PI)
                                      within-world?)))))
+    (testing "Movement with no position or heading sets a heading."
+      (is (:heading (events/move mami within-world?))))
     (testing "Moving beyond the world sets her at home."
       (is (= (:home positioned-mami)
              (:position
@@ -219,6 +222,25 @@
                     (doall (repeatedly 5 #(events/fight sayaka gertrud))))]
       (is (= [sayaka gertrud sayaka gertrud sayaka]
              (map :winner results))))))
+
+;; I'm not really sure what will happen when more than one magical
+;; girl is capable of engaging a given witch in battle in a given
+;; turn. Since Kriemhild-Gretchen has one billion discoverability,
+;; everyone is able to fight her on this turn.
+(deftest test-combat-results
+  (let [magical-girls [(assoc mami :position [35 35])
+                       (assoc sayaka :position [100 100])
+                       (assoc ultimate-madoka :position [199 199 ])]
+        witches [gertrud kriemhild-gretchen charlotte]
+        results (binding [events/random-source (Random. 23)]
+                  (events/combat-results magical-girls witches))]
+    (testing "Mami and Kriemhild Gretchen are dead."
+      (is (= (:the-dead results) #{mami kriemhild-gretchen})))
+    (testing "Sayaka, Godoka, and Gertrud are alive."
+      (is (= (:the-victors results) #{sayaka ultimate-madoka gertrud})))
+    (testing "No one ran away."
+      (is (= (:the-fled results) #{})))))
+
 
 ;;;; Below this is the printing tests. They print because they're random,
 ;;;; so there is no "right" answer to assert on, but there are more and less
