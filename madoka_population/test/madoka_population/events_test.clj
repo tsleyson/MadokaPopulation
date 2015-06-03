@@ -251,9 +251,7 @@
         (is (not-any? #(contains? % charlotte)
                       [the-dead the-victors the-fled])))))
   (testing "With game-breakers."
-    (let [magical-girls [mami
-                         ultimate-madoka
-                         sayaka]
+    (let [magical-girls [mami ultimate-madoka sayaka]
           witches [charlotte gertrud kriemhild-gretchen]
           {:keys [the-dead the-victors the-fled]}
           (binding [events/random-source (Random. 23)]
@@ -265,11 +263,10 @@
       (testing "No one ran away."
         (is (= the-fled #{})))
       (testing "Ultimate Madoka and Charlotte took part in no battles."
-        (is (not (or
-                  (some #(contains? % ultimate-madoka)
-                        [the-dead the-victors the-fled])
-                  (some #(contains? % charlotte)
-                        [the-dead the-victors the-fled]))))))))
+        (is (not-any? #(contains? % ultimate-madoka)
+                      [the-dead the-victors the-fled]))
+        (is (not-any? #(contains? % charlotte)
+                      [the-dead the-victors the-fled]))))))
 
 
 ;;;; Below this is the printing tests. They print because they're random,
