@@ -20,6 +20,15 @@ randomness."
   (* Math/PI (* 2 (.nextDouble random-source))))
 ;; Took the (* 2 (.nextDouble ...)) part from the source of rand.
 
+(defn pick-your-battles
+  "Implements a policy for magical girls to choose which battle to
+  engage in, among all the possible battles in a turn."
+  [[magical-girl opponents]]
+  [magical-girl
+   (->> opponents
+        (sort-by :combat)
+        first)])  ; Choose to fight weakest.
+
 (defn- randoms-in-range
   "Generates a sample from a random normal distribution bound to the
   range between 0 and 1."
@@ -175,6 +184,14 @@ randomness."
      :else
        (determine-outcome (:stronger info) (:weaker info)))))
 
+(defn possible-battles
+  "Returns a map of magical girls to vectors of witches in range."
+  [magical-girls witches]
+  (->> (for [magical-girl magical-girls, witch witches
+             :when (discovered? magical-girl witch)]
+         {magical-girl [witch]})
+       (apply merge-with (comp vec concat))))
+
 (defn combat-results
   "Run all possible battles given a list of witches and a list of
   magical girls. Returns a map containing the dead, the victors, and
@@ -182,11 +199,13 @@ randomness."
   [magical-girls witches]
   {:post [(= #{} (set/intersection (:the-dead %)
                                    (:the-victors %)
-                                   (:the-fled %)))]}
-  (let [results (->> (for [magical-girl magical-girls, witch witches
-                           :when (discovered? magical-girl witch)]
-                       [magical-girl witch])
-                     (map #(apply fight %)))]
+                                   (:the-fled %)))
+          (= (count (:the-dead %)) (count (:the-victors %)))]}
+  (let [results (->> (possible-battles magical-girls witches)
+                     (map pick-your-battles)
+                     (map (comp vec reverse))
+                     (into {})
+                     (map #(fight (second %) (first %))))]
     {:the-dead (into #{} (map :loser results))
      :the-victors (into #{} (map :winner results))
      :the-fled (into #{} (keep #(:fled % nil) results))}))

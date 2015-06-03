@@ -11,13 +11,15 @@
 (def world-size 200)
 
 (def sayaka
-  (entities/->MagicalGirl 50 12 0 0.06 [34.123 109.234]))
+  (-> (entities/->MagicalGirl 50 12 0 0.06 [34.123 109.234])
+      (assoc :position [100 100])))
 
 (def gertrud
   (entities/->Witch 75 15 [50 50]))
 
 (def mami
-  (entities/->MagicalGirl 100 15.0 0 0 [0 0]))
+  (-> (entities/->MagicalGirl 100 15.0 0 0 [0 0])
+      (assoc :position [35 35])))
 
 (def charlotte
   (entities/->Witch 150 24.0 [10 10]))
@@ -38,7 +40,8 @@
 ;; witch anywhere, so her tracking and combat are a trillion
 ;; and her soul gem degradation is 0.
 (def ultimate-madoka
-  (entities/->MagicalGirl 1e12 1e12 0 0 [0 0]))
+  (-> (entities/->MagicalGirl 1e12 1e12 0 0 [0 0])
+      (assoc :position [0 0])))
 
 (def incubators
   (map entities/->Incubator [0.5 0.9 0.7 0.43]))
@@ -90,14 +93,15 @@
 
 (deftest test-circle-overlap
   (testing "Overlapping circles are detected."
-    (is (events/circles-overlap? (assoc mami :position [35 35]) charlotte)))
+    (is (events/circles-overlap? mami charlotte)))
   (testing "A circle inside a circle counts as overlapping."
     (is (events/circles-overlap? (assoc mami :position [5 5]) charlotte)))
   (testing "Non-overlapping circles aren't detected."
     (is (not (events/circles-overlap?
               (assoc mami :position [300 300]) charlotte))))
   (testing "The precondition fails if the magical girl has no position."
-    (is (thrown? AssertionError (events/circles-overlap? mami charlotte)))))
+    (is (thrown? AssertionError (events/circles-overlap?
+                                 (dissoc mami :position) charlotte)))))
 
 ;;; Note: Incanter can plot circles. The following code was hugely helpful
 ;;; for debugging and developing these test cases:
@@ -105,11 +109,14 @@
   (defn circle [h k r]
     (fn [t] [(+ h (* r (incanter.core/cos t)))
              (+ k (* r (incanter.core/sin t)))]))
-  (-> (incanter.charts/parametric-plot (circle 35 35 15) (- Math/PI) Math/PI)
-      (incanter.charts/add-parametric (circle 10 10 24) (- Math/PI) Math/PI)
+  (-> (incanter.charts/parametric-plot (circle 35 35 15) (- Math/PI) Math/PI
+                                       :legend true
+                                       :series-name "Mami")
+      (incanter.charts/add-parametric (circle 10 10 24) (- Math/PI) Math/PI
+                                      :series-name "Charlotte")
       incanter.charts/view))
 ;;; That code plots two circles with centers at 35, 35 and 10, 10 and radii
-;;; 15 and 24. 
+;;; 15 and 24. It includes a legend with names.
 
 (deftest test-heading-determination
   (let [headed-mami (-> mami
@@ -127,7 +134,10 @@
       (binding [events/random-source (java.util.Random. 22)]
         (is (= 4.6006859922885575
                (:heading (events/determine-heading
-                          (dissoc headed-mami :heading)))))))))
+                          (dissoc headed-mami :heading)))))))
+    (testing "Precondition fails when no position."
+      (is (thrown? AssertionError (events/determine-heading
+                                   (dissoc mami :position)))))))
 ;; N.B. Headed Mami still has her head.
 
 (deftest test-movement
@@ -139,10 +149,12 @@
              (:position (events/move positioned-mami within-world?)))))
     (testing "Movement with no position sets her at home."
       (is (= (:home mami)
-             (:position (events/move (assoc mami :heading Math/PI)
+             (:position (events/move (-> mami
+                                         (assoc :heading Math/PI)
+                                         (dissoc :position))
                                      within-world?)))))
     (testing "Movement with no position or heading sets a heading."
-      (is (:heading (events/move mami within-world?))))
+      (is (:heading (events/move (dissoc mami :position) within-world?))))
     (testing "Moving beyond the world sets her at home."
       (is (= (:home positioned-mami)
              (:position
@@ -223,23 +235,41 @@
       (is (= [sayaka gertrud sayaka gertrud sayaka]
              (map :winner results))))))
 
-;; I'm not really sure what will happen when more than one magical
-;; girl is capable of engaging a given witch in battle in a given
-;; turn. Since Kriemhild-Gretchen has one billion discoverability,
-;; everyone is able to fight her on this turn.
 (deftest test-combat-results
-  (let [magical-girls [(assoc mami :position [35 35])
-                       (assoc sayaka :position [100 100])
-                       (assoc ultimate-madoka :position [199 199 ])]
-        witches [gertrud kriemhild-gretchen charlotte]
-        results (binding [events/random-source (Random. 23)]
-                  (events/combat-results magical-girls witches))]
-    (testing "Mami and Kriemhild Gretchen are dead."
-      (is (= (:the-dead results) #{mami kriemhild-gretchen})))
-    (testing "Sayaka, Godoka, and Gertrud are alive."
-      (is (= (:the-victors results) #{sayaka ultimate-madoka gertrud})))
-    (testing "No one ran away."
-      (is (= (:the-fled results) #{})))))
+  (testing "Without game-breakers."
+    (let [magical-girls [mami sayaka]
+          witches [gertrud charlotte]
+          {:keys [the-dead the-victors the-fled]}
+          (binding [events/random-source (Random. 23)]
+            (events/combat-results magical-girls witches))]
+      (testing "Mami killed Gertrud."
+        (is (= the-dead #{gertrud}))
+        (is (= the-victors #{mami})))
+      (testing "Sayaka and Charlotte don't appear."
+        (is (not-any? #(contains? % sayaka)
+                      [the-dead the-victors the-fled]))
+        (is (not-any? #(contains? % charlotte)
+                      [the-dead the-victors the-fled])))))
+  (testing "With game-breakers."
+    (let [magical-girls [mami
+                         ultimate-madoka
+                         sayaka]
+          witches [charlotte gertrud kriemhild-gretchen]
+          {:keys [the-dead the-victors the-fled]}
+          (binding [events/random-source (Random. 23)]
+            (events/combat-results magical-girls witches))]
+      (testing "Sayaka and Gertrud are dead."
+        (is (= the-dead #{sayaka gertrud})))
+      (testing "Mami and Gretchen won their battles."
+        (is (= the-victors #{mami kriemhild-gretchen})))
+      (testing "No one ran away."
+        (is (= the-fled #{})))
+      (testing "Ultimate Madoka and Charlotte took part in no battles."
+        (is (not (or
+                  (some #(contains? % ultimate-madoka)
+                        [the-dead the-victors the-fled])
+                  (some #(contains? % charlotte)
+                        [the-dead the-victors the-fled]))))))))
 
 
 ;;;; Below this is the printing tests. They print because they're random,

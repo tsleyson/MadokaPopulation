@@ -371,3 +371,39 @@ The whole state namespace has been just a nightmare. I added a macro =symbols-in
     [& symbols]
     `(and ~@(map resolve symbols)))
 #+end_src
+
+The nightmare continued. The function with eval version also worked in the REPL, but barfed in the actual application. The commit message and the version of this doc from that branch says more, but essentially, I gave up and replaced the whole stupid thing with a closure around the config map so I would have a no-arg function to give to Quil as its setup function. I had to call the Quil setup stuff for the frame rate and all that inside it too, but I wanted to be able to test the returned map, and I couldn’t call the function without being in a Quil context, so I added a =testing= parameter that’s =false= by default and can be set to true and not run the Quil stuff when it’s true. 
+
+*** Problems with combat-result
+;; I'm not really sure what will happen when more than one magical
+;; girl is capable of engaging a given witch in battle in a given
+;; turn. Since Kriemhild-Gretchen has one billion discoverability,
+;; everyone is able to fight her on this turn.
+
+That was the comment I wrote above test-combat-results in events_test.clj, and it turned out that what happened is, when I wrote “every possible battle” in the docstring, it meant that in a much freer sense than I knew. 
+
+If two magical girls overlap the same witch’s radius, both magical girls will fight the witch, and it’s possible that both will kill it. That’s a problem.
+
+If two witches overlap the same magical girl’s radius, it’s possible that both witches will kill that magical girl. That’s less of a problem since there is no apportionment of grief seeds to worry about.
+
+I guess it would be okay if the magical girl killed two witches at once, but the problem comes when she loses one battle; as things are currently written, she’ll be both alive and dead at the same time. I guess I could just do =(set/difference the-victors the-dead)= so that a magical girl who loses any of several battles in which she takes part is dead. 
+
+#+begin_src clojure
+(binding [events/random-source (Random. 23)] (events/combat-results mgs ws))
+{:the-dead #{nil #madoka_population.entities.Witch{:combat 75, :discoverability 15, :position [50 50]}}, :the-victors #{#madoka_population.entities.MagicalGirl{:combat 100, :tracking 15.0, :soul-gem 0, :corruption-rate 0, :home [0 0], :position [35 35]}}, :the-fled #{#madoka_population.entities.MagicalGirl{:combat 100, :tracking 15.0, :soul-gem 0, :corruption-rate 0, :home [0 0], :position [35 35]}}}
+#+end_src
+
+This is how I’m going to attempt to resolve this issue.
+
+In the Madoka anime and manga spinoffs, the magical girls are able to be pretty selective about which witches they fight. They have to enter the witch’s labyrinth before the fight begins. So assuming a magical girl were aware of two witches in a close area (i.e. her discovery radius overlapped with two witches), she would be able to fight one, come back tomorrow, and fight the other one. 
+
+So rather than making any possible fight happen, what I’ll do is pair up each magical girl with a list of witches within her range. Then she can apply some kind of policy function to choose which one to fight this turn. Then I’ll return a list of all those pairs of magical girl and the witch she’s chosen to fight. 
+
+This still leaves the problem of two magical girls choosing to fight the same witch. In the anime they could do that, but grief seeds can’t be shared so it had to be a long-term cooperative thing where they would award the grief seed to whoever was most in need of it. I guess this could be handled in two ways:
+
+1. Just filter the list and disallow multiple magical girls to fight the same witch. Consider that whoever appears earlier in the list got there first (or resolve conflicts by combat strength, or tracking ability, or something else).
+2. Allow them both to fight the witch. Award the grief seed to whoever’s soul gem is more corrupted.
+
+To be maximally realistic we would have to do both of these things at different times, randomly. I’m not going to do that. Even Option (2) sounds like too much work because we have to run the fight against both magical girls, or do something weird like make a temporary composite magical girl with both girls’ strength combined, then when the magical girls win, we have to figure out whose soul gem is blacker and put only her on the victors set, but then we have to somehow throw out the other girl because she isn’t dead presumably (unless the fight can end with only one girl living, which is an even bigger pain to implement), but she isn’t a victor and she didn’t run away (I guess as hack we could shove the other girl in the fled list so her soul gem still blackens but she isn’t dead). 
+
+Option (1) it is!
