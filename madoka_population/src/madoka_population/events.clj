@@ -110,11 +110,13 @@ randomness."
   them into witches. Removes them from magical girl sequence and
   returns the new magical girl sequence and the new witch sequence in
   a diff map."
-  [magical-girls witches]
-  (let [despairing (into #{} (filter #(>= (:soul-gem %) 1.0)
-                                     magical-girls))]
-    {:magical-girls (remove despairing magical-girls)
-     :witches (concat witches (map entities/new-witch despairing))}))
+  ([{:keys [magical-girls witches]}]
+     (spawn-witches magical-girls witches))
+  ([magical-girls witches]
+     (let [despairing (into #{} (filter #(>= (:soul-gem %) 1.0)
+                                        magical-girls))]
+       {:magical-girls (remove despairing magical-girls)
+        :witches (concat witches (map entities/new-witch despairing))})))
 
 (defn spawn-incubators
   "Called once at the beginning of the simulation."
@@ -213,18 +215,21 @@ randomness."
 (defn round-of-combat
   "Given all magical girls and witches on the field, runs all possible
   battles. Returns a list of surviving magical girls and witches."
-  [magical-girls witches]
-  (let [{:keys [the-dead the-victors the-fled]}
-        (combat-results magical-girls witches)]
-    {:magical-girls
-     (->> magical-girls
-         (remove the-dead)
-         (map #(entities/blacken-soul-gem % 1))
-         (map #(if (contains? the-victors %) (entities/won-battle %) %))
-         (map #(if (contains? the-fled %) (entities/fled-battle %) %)))
-     :witches
-     (->> witches
-          (remove the-dead))}))
+  ([{:keys [magical-girls witches]}]
+     (round-of-combat magical-girls witches))
+  ([magical-girls witches]
+     (let [{:keys [the-dead the-victors the-fled]}
+           (combat-results magical-girls witches)]
+       {:magical-girls
+        (->> magical-girls
+             (remove the-dead)
+             (map #(cond
+                    (contains? the-victors %) (entities/won-battle %)
+                    (contains? the-fled %) (entities/fled-battle %)
+                    :else (entities/blacken-soul-gem % 1))))
+        :witches
+        (->> witches
+             (remove the-dead))})))
 ;; Blacken everyone's soul gem, but then purify those who have won a battle.
 ;; After this we call spawn-witches on the list and anyone whose soul gem
 ;; is over the edge becomes a witch.

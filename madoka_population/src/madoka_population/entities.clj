@@ -35,7 +35,7 @@
     (assoc magical-girl
       :combat
       (+ (:combat magical-girl)
-         (first (stats/sample-normal 1 :mean 5 :sd 1)))))
+         (stats/sample-normal 1 :mean 5 :sd 1))))
   (won-battle [magical-girl]
     (-> magical-girl
         increase-combat

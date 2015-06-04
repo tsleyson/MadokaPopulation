@@ -4,8 +4,7 @@
             [madoka-population.events :as events]
             [quil.core :as qc]
             [quil.middleware :as qm]
-            [clojure.edn :as edn]
-            [clojure.java.io :as io]))
+            [clojure.edn :as edn]))
 
 (def default-config
   "The default config used when no map provided."
@@ -70,9 +69,26 @@
      :turns-per-day turns-per-day
      :within-world? (within-world-of-size? world-size)}))
 
+(defn before-combat
+  "Creates new magical girls and moves the magical girls for this
+  turn. Returns a diff map of changes. Meant to be called in pipeline
+  with events/round-of-combat and events/spawn-witches."
+  [{:keys [magical-girls witches incubators turns turns-per-day] :as bundle}]
+  {:magical-girls (->> magical-girls
+                       (comp
+                        (map events/move) 
+                        (if (zero? (mod turns turns-per-day))
+                          (partial map #(dissoc % :position))
+                          identity)
+                        (concat (events/spawn-magical-girls incubators))))
+   :witches witches})
+
 (defn update-state-bundle
-  [{:keys [magical-girls witches incubators turns] :as bundle}]
-  (assoc bundle :turns (inc turns)))
+  [bundle]
+  (merge bundle
+         (-> (before-combat bundle)
+             events/round-of-combat
+             events/spawn-witches)))
 
 (defn draw
   [{:keys [magical-girls witches turns] :as bundle}]

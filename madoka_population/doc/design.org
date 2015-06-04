@@ -407,3 +407,98 @@ This still leaves the problem of two magical girls choosing to fight the same wi
 To be maximally realistic we would have to do both of these things at different times, randomly. I’m not going to do that. Even Option (2) sounds like too much work because we have to run the fight against both magical girls, or do something weird like make a temporary composite magical girl with both girls’ strength combined, then when the magical girls win, we have to figure out whose soul gem is blacker and put only her on the victors set, but then we have to somehow throw out the other girl because she isn’t dead presumably (unless the fight can end with only one girl living, which is an even bigger pain to implement), but she isn’t a victor and she didn’t run away (I guess as hack we could shove the other girl in the fled list so her soul gem still blackens but she isn’t dead). 
 
 Option (1) it is!
+
+*** Problems with update
+I really should have made the magical girls and witches sets instead of seqs. Then I could have just done a merge-with using set/intersection and gotten them all together.
+
+I see three choices for how to proceed here:
+  1. Rewrite all the events functions to use sets. There will probably be a certain amount of juggling between sets and seqs because I used some functions on seqs that have no analogue on sets. 
+  2. Just have the update function turn everything into a set, take the intersection, and turn it back into a seq. Hacky, ugly, and a clear sign of a bad design...but really quick.
+  3. Write some kind of crazy seq intersection function. This was actually my first thought (these options are in reverse of the order I came up with them in). 
+
+I hate all of these options for the following reasons:
+  1. It’s a pain. I have to rewrite and retest a bunch of code, and probably still can’t avoid ugly conversion between sets and seqs. It will probably be really confusing to implement and I’ll constantly have type errors that made me wish I had static typing (at least until I’m actually using a statically typed language again). Probably the fastest, if I can avoid large-scale conversions between set and seq (e.g. the stuff I already have where I use =into= to make =the-victors= and =the-dead= into sets is small-scale). 
+  2. It’s ugly and stupid and probably ass slow, but seductively easy. 
+  3. Not only will this be fiddly and hard to implement, it will probably turn out even ass slower than option 2. 
+
+Option (2) it is!
+
+I guess I should say why: I kind of want to finish this. It’s been going on forever. I love Madoka and I love Clojure but neither of those is going to get me a job so it’s time to finish this and start getting serious on Android or web. It’s the same reason I decided not to use a quadtree for finding pairs: it would be more elegant and much more performant, but it would take forever to get right, if I ever did, since I’m an idiot.
+
+Of course, this turned out to be more complicated than that, because we can’t really always do an intersection. For one thing, sometimes we actually want a union, e.g. with the new magical girls. Other times we want a union, but we want to replace some of the girls who’ve changed after battles or not battles (i.e. their soul gems are corrupted). I don’t know what was wrong with me to think we could just do a merge with intersection and get the right result.
+
+Cases:
+  1. After round-of-combat, we want to completely replace the magical girl list. The dead have been removed and all necessary changes have been made. We want to replace the witch list as well.
+  2. After spawn-magical-girls, we want to merge / concat the new magical girls with the old ones. 
+  3. move and determine-heading don’t return new lists; they have to actually be mapped over the lists to create new lists which we want to replace the old lists. Also, we only want to call determine-heading every turns-per-day turns, and we want to call it after move. We also need to somehow unset heading or position every turns-per-day so when we call move on the magical girls, they’ll go home and find a new heading. (So the best thing is probably to treat determine-heading as a private helper and just send signals to move by unsetting the position.)
+
+So in the end, I guess what we need looks something like this:
+
+#+begin_src clojure
+  (let [moved-magical-girls
+        (if (zero? (mod turns turns-per-day))
+          (->> magical-girls
+               (concat (events/spawn-magical-girls incubators))
+               (map #(dissoc % :position))
+               (map events/move))
+          (->> magical-girls 
+               (concat (events/spawn-magical-girls incubators))
+               (map events/move)))]
+    (comment Now do stuff...))
+#+end_src  
+
+That gives us the list of magical girls after we’ve spawned new ones for this turn and moved them all. But probably it would be shorter (but less readable) to write it like this:
+
+#+begin_src clojure
+  (let [moved-magical-girls
+        (->> magical-girls
+             (concat (events/spawn-magical-girls incubators))
+             (if (zero? (mod turns turns-per-day))
+               (partial map #(dissoc % :position))
+               identity)
+             (map events/move))]
+    (comment Now do stuff...))
+#+end_src
+
+Now the magical girls are all in position, so we can begin the actual battle phase. In place of the comment that says “Now do stuff...” above, we’d have something like
+
+#+begin_src clojure
+  (events/round-of-combat moved-magical-girls witches)
+#+end_src
+
+Which gives us the new lists of witches and magical girls. The magical girls have all done their battles, died or won, and had their soul gems blackened or purified. The witches have died and been removed. Now we have to call spawn-witches and get the results from that. Then we have the final lists, which can replace the lists in the bundle.
+
+The final code should look something like this:
+
+#+begin_src clojure
+  (let [combat-phase-begin
+        {:magical-girls (->> magical-girls
+                             (concat (events/spawn-magical-girls incubators))
+                             (if (zero? (mod turns turns-per-day)
+                                        (partial map #(dissoc % :position))
+                                        identity))
+                             (map events/move))
+         :witches witches}]
+    (-> combat-phase-begin
+        events/round-of-combat
+        events/spawn-witches))
+#+end_src
+
+Then we should just be able to merge that with the bundle and get the new lists subbed in as replacements.
+
+Two things: that code is messy, and it doesn’t work because =round-of-combat= and =spawn-witches= take two arguments.
+
+I was going to make them take one map argument by using an anonymous fn that forwards its arguments, then I realized, like, duh, that’s what overloads are for.
+
+The messiness can be ameliorated with another function that returns the =combat-phase-begin= map. I called it =before-combat=, but I couldn’t write it quite as in that snippet because =->>= is a macro, so it didn’t evaluate the =if= that decides which function to use based on the number of turns. So I had to combine all the functions into one function using =comp=, which meant I had to put them backwards, so it’s really confusing and hard to read. It’s still using =->>= to pass in the argument. I can’t decide which is worse: sticking a giant horrible =comp= at the beginning of an s-expression, which is horrendous but at least puts the argument closest to the first function that gets applied, or what I have now, which is easier to read (because you can just think “Oh, we’re doing some stuff to magical-girls” before diving into that stuff), but it’s backwards, so you have to realize that the argument is being passed into a comp and also remember that comp puts everything backwards.
+
+Then the entire code inside =update= should basically be
+
+#+begin_src clojure
+  (merge bundle (-> (position-for-combat
+                     magical-girls witches incubators)
+                    events/round-of-combat
+                    events/spawn-witches))
+#+end_src
+
+A purely functional, short, and reasonably elegant piece of code backed up by tons and tons of horrible (but still purely functional) messiness with curly braces and colons. Also, it’s probably purely slow. But I’m not worrying about that now. If it is, I’ll try using type hints and sprinkling in some =pmap= and =future=. 
