@@ -270,11 +270,9 @@
 
 (deftest test-round-of-combat
   (testing "Without game-breakers."
-    (let [orig-magical-girls [mami sayaka]
-          orig-witches [gertrud charlotte]
-          {:keys [magical-girls witches]}
+    (let [{:keys [magical-girls witches]}
           (binding [events/random-source (Random. 23)]
-            (events/round-of-combat orig-magical-girls orig-witches))]
+            (events/round-of-combat [mami sayaka] [gertrud charlotte]))]
       ;; Combat boost is random and not bound to events/random-source,
       ;; so can't directly test for equality of before and after lists.
       (testing "Mami and Sayaka both survived this round."
@@ -289,7 +287,17 @@
         (is (= (:combat (second magical-girls)) (:combat sayaka))))
       (testing "Sayaka's soul gem is blackened by 1x her corruption rate."
         (is (= (:corruption-rate sayaka)
-               (:soul-gem (second magical-girls))))))))
+               (:soul-gem (second magical-girls)))))))
+  (testing "With game-breakers."
+    (let [{:keys [magical-girls witches]}
+          (binding [events/random-source (Random. 23)]
+            (events/round-of-combat
+             [mami ultimate-madoka sayaka]
+             [gertrud charlotte kriemhild-gretchen]))]
+      (testing "Among magical girls, Mami and Ultimate Madoka remain."
+        (is (= 2 (count magical-girls))))
+      (testing "Among witches, Charlotte and Gretchen remain."
+        (is (= [charlotte kriemhild-gretchen] witches))))))
 
 ;;;; Below this is the printing tests. They print because they're random,
 ;;;; so there is no "right" answer to assert on, but there are more and less
