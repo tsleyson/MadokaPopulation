@@ -57,3 +57,8 @@
   ;; get 3x corruption, but only 2x from fled-battle.
   (testing "Walpurgisnacht can't actually run, so is unaffected."
     (is (= walpurgisnacht (entities/fled-battle walpurgisnacht)))))
+
+(deftest test-new-magical-girl
+  (let [random-magical-girl (entities/new-magical-girl 200)]
+    (testing "Random magical girl is positioned at home."
+      (is (= (:home random-magical-girl) (:position random-magical-girl))))))

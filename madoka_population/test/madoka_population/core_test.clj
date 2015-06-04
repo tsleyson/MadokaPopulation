@@ -20,12 +20,7 @@
            starting-witches (:witches test-bundle)
            incubator-count (:incubators test-bundle))
       (is ((:within-world? test-bundle) (/ world-size 2)))
-      (is (zero? (:turns test-bundle))))
-    (testing "The magical girls and witches have positions."
-      (is (every? #(not (nil? %))
-                  (map :position
-                       (concat (:magical-girls test-bundle)
-                               (:witches test-bundle))))))))
+      (is (zero? (:turns test-bundle))))))
 
 (deftest test-summary-text
   (is (= (core/summary-text bundle)
@@ -33,5 +28,3 @@
               "Witches: " starting-witches "\n"
               "Incubators: " incubator-count "\n"
               "Turns: " (:turns bundle)))))
-
-;;;; Integration tests. 
