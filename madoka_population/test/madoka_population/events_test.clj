@@ -18,7 +18,7 @@
   (entities/->Witch 75 15 [50 50]))
 
 (def mami
-  (-> (entities/->MagicalGirl 100 15.0 0 0 [0 0])
+  (-> (entities/->MagicalGirl 100 15.0 0 0.054 [0 0])
       (assoc :position [35 35])))
 
 (def charlotte
@@ -268,6 +268,28 @@
         (is (not-any? #(contains? % charlotte)
                       [the-dead the-victors the-fled]))))))
 
+(deftest test-round-of-combat
+  (testing "Without game-breakers."
+    (let [orig-magical-girls [mami sayaka]
+          orig-witches [gertrud charlotte]
+          {:keys [magical-girls witches]}
+          (binding [events/random-source (Random. 23)]
+            (events/round-of-combat orig-magical-girls orig-witches))]
+      ;; Combat boost is random and not bound to events/random-source,
+      ;; so can't directly test for equality of before and after lists.
+      (testing "Mami and Sayaka both survived this round."
+        (is (= 2 (count magical-girls))))
+      (testing "Among witches, only Charlotte survived."
+        (is (= [charlotte] witches)))
+      (testing "Mami's combat stat is higher."
+        (is (> (:combat (first magical-girls)) (:combat mami))))
+      (testing "Mami's soul gem is clear."
+        (is (zero? (:soul-gem (first magical-girls)))))
+      (testing "Sayaka's combat is the same."
+        (is (= (:combat (second magical-girls)) (:combat sayaka))))
+      (testing "Sayaka's soul gem is blackened by 1x her corruption rate."
+        (is (= (:corruption-rate sayaka)
+               (:soul-gem (second magical-girls))))))))
 
 ;;;; Below this is the printing tests. They print because they're random,
 ;;;; so there is no "right" answer to assert on, but there are more and less
