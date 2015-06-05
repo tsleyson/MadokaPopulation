@@ -161,9 +161,8 @@
               (events/move positioned-mami #(every? zero? %&))))))))
 
 (deftest test-mg-spawning
-  (let [new-girls (:magical-girls
-                   (binding [events/random-source (java.util.Random. 22)]
-                     (events/spawn-magical-girls incubators world-size)))]
+  (let [new-girls (binding [events/random-source (java.util.Random. 22)]
+                    (events/spawn-magical-girls incubators world-size))]
     (testing "There are two new girls."
       (is (= 2 (count new-girls))))
     (testing "The new girls' homes are in the world."

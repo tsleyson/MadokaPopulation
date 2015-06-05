@@ -34,14 +34,14 @@
           turns))
 
 (defn get-config
-  "Reads config map from a file."
-  [filename]
-  {:pre [(or (= java.lang.String (type filename)) (nil? filename))]}
-  (if (nil? filename)
-    default-config
-    (-> filename
-        slurp
-        edn/read-string)))
+  "Reads config map from a file. Returns default if no arguments passed."
+  ([]
+     default-config)
+  ([filename]
+      {:pre [(= java.lang.String (type filename))]}
+      (-> filename
+          slurp
+          edn/read-string)))
 
 ;;;; State management
 
@@ -67,20 +67,28 @@
      ;; (the poor dears) to get the initial batch of witches.
      :turns 0
      :turns-per-day turns-per-day
-     :within-world? (within-world-of-size? world-size)}))
+     :within-world? (within-world-of-size? world-size)
+     :world-size world-size}))
 
 (defn before-combat
   "Creates new magical girls and moves the magical girls for this
   turn. Returns a diff map of changes. Meant to be called in pipeline
   with events/round-of-combat and events/spawn-witches."
-  [{:keys [magical-girls witches incubators turns turns-per-day] :as bundle}]
-  {:magical-girls (->> magical-girls
-                       (comp
-                        (map events/move) 
-                        (if (zero? (mod turns turns-per-day))
-                          (partial map #(dissoc % :position))
-                          identity)
-                        (concat (events/spawn-magical-girls incubators))))
+  [{:keys [magical-girls witches incubators
+           turns turns-per-day world-size] :as bundle}]
+  {:magical-girls ((comp
+                    (partial map #(events/move % (:within-world? bundle)))
+                    
+                    (if (zero? (mod turns turns-per-day))
+                      (partial map #(dissoc % :position))
+                      identity)
+                    
+                    (partial
+                     concat (events/spawn-magical-girls
+                             incubators
+                             world-size)))
+                   
+                   magical-girls)
    :witches witches})
 
 (defn update-state-bundle
@@ -88,7 +96,8 @@
   (merge bundle
          (-> (before-combat bundle)
              events/round-of-combat
-             events/spawn-witches)))
+             events/spawn-witches)
+         {:turns (inc (:turns bundle))}))
 
 (defn draw
   [{:keys [magical-girls witches turns] :as bundle}]

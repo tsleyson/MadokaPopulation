@@ -101,9 +101,8 @@ randomness."
         (->> (repeatedly (count incubators) #(.nextDouble random-source))
              (map #(when (<= %2 (:success-rate %1)) %2) incubators)
              (remove nil?))]
-    {:magical-girls
-     (repeatedly (count successes)
-                 #(entities/new-magical-girl world-size))}))
+    (doall (repeatedly (count successes)
+                       #(entities/new-magical-girl world-size)))))
 
 (defn spawn-witches
   "Finds all magical girls who have succumbed to despair, and turns
