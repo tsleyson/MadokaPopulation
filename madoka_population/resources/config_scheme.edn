@@ -1,8 +1,8 @@
 {
-    incubator-count 10
+    incubator-count 2
     incubator-mean-success 0.5
     world-size 500
     starting-magical-girls 5
-    starting-witches 8
+    starting-witches 0
     turns-per-day 60
 }

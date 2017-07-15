@@ -4,6 +4,8 @@ A simulation of the witch / magical girl population as seen in [a certain magica
 
 You can start with a population of magical girls and witches already in place and observe the system from there, or you can just specify the number of Incubators at the start and let things evolve organically.
 
+Start up with `lein run resources/config_scheme.edn`. The file `resources/config_scheme.edn` has all the starting settings, e.g. how many witches, magical girls, and incubators to start out with.
+
 # License
 
 The code is mine. Use it as you please, but do attribute it to me (even if

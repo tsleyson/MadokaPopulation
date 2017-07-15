@@ -5,7 +5,7 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [incanter "1.5.6"]
-                 [quil "2.2.5"]
+                 [quil "2.2.5" :exclusions [org.clojure/clojure]]
                  [com.taoensso/timbre "3.3.1"]]
   :test-selectors {:non-printing (complement :printing)
                    :all (constantly true)}
